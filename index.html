@@ -763,7 +763,7 @@ function renderCard(sec,c,host){
   var st=ui(c.id,Object.assign({view:'chart',kind:c.kinds[0],mode:'count'},c.state||{}));
   if(!HAS_CHART)st.view='table';
   var data=computeCard(sec,c,st);
-  var model=tableModel(sec,c,data);
+  var model=tableModel(sec,dc(c,data),data);
   var again=function(){renderCard(sec,c,host);};
   var ctrls=h('div',{class:'ctrls'});
   if(c.extra)c.extra(sec,st,again).forEach(function(e){ctrls.append(e);});
@@ -779,8 +779,8 @@ function renderCard(sec,c,host){
   if(st.view==='chart'){
     var canvas=h('canvas',{role:'img','aria-label':c.title+' chart'});
     host.append(h('div',{class:'chartwrap',style:'height:'+chartHeight(st.kind,data.labels.length)+'px'},canvas));
-    host._chart=buildChart(sec,c,data,st,canvas);
-  }else host.append(tableEl(sec,c,model));
+    host._chart=buildChart(sec,dc(c,data),data,st,canvas);
+  }else host.append(tableEl(sec,dc(c,data),model));
 }
 
 /* ---------- data tables (search, sort, pages) ---------- */
@@ -1025,6 +1025,51 @@ function planBuild(dimKey,labels){
   };
 }
 
+function dc(c,data){return data.dim?Object.assign({},c,{dim:data.dim}):c;}
+function genderBuild(sec,st){
+  var byCat=st.by!=='dept';
+  var rs=recs(sec,'staff',byCat?'cat':'dept');
+  if(st.pick)rs=rs.filter(function(r){return byCat?r.dept===st.pick:r.cat===st.pick;});
+  var labels=byCat?RANKS.concat(['Administrative']):ALLDEPTS.slice();
+  var key=function(r){return byCat?r.cat:r.dept;};
+  var cnt=function(l,g){return rs.filter(function(r){return key(r)===l&&r.gender===g;}).length;};
+  var f=labels.map(function(l){return cnt(l,'Female');}),mm=labels.map(function(l){return cnt(l,'Male');});
+  var totals=labels.map(function(l,i){return f[i]+mm[i];});
+  return{dim:byCat?'cat':'dept',labels:labels,totals:totals,grand:rs.length,stacked:true,
+    series:[{name:'Female',data:f,color:'c6'},{name:'Male',data:mm,color:'c7'}]};
+}
+function genderExtra(sec,st,again){
+  var byCat=st.by!=='dept';
+  var out=[seg([['cat','By rank'],['dept','By department']],st.by,function(v){st.by=v;st.pick='';again();},'Group by')];
+  var opts=byCat?ALLDEPTS:RANKS.concat(['Administrative']);
+  var sel=h('select',{class:'mini','aria-label':byCat?'Department':'Rank',onchange:function(){st.pick=sel.value;again();}},
+    h('option',{value:''},byCat?'All departments':'All ranks'),
+    opts.map(function(o){return h('option',{value:o,selected:o===st.pick},o);}));
+  out.push(sel);
+  return out;
+}
+
+function planBuild2(sec,st){
+  var byCat=st.by!=='dept';
+  var skip=byCat?'cat':'dept';
+  var stf=recs(sec,'staff',skip),vc=recs(sec,'vac',skip);
+  if(st.pick){
+    var fl=function(r){return byCat?r.dept===st.pick:r.cat===st.pick;};
+    stf=stf.filter(fl);vc=vc.filter(fl);
+  }
+  var labels=byCat?RANKS.concat(['Administrative']):ALLDEPTS.slice();
+  var get=function(r){return byCat?r.cat:r.dept;};
+  var rows=labels.map(function(l){
+    var a=stf.filter(function(r){return get(r)===l;}).length,v=vc.filter(function(r){return get(r)===l;}).length;
+    return{l:l,a:a,v:v,p:a+v};});
+  var A=stf.length,V=vc.length,P=A+V;
+  return{dim:byCat?'cat':'dept',labels:labels,totals:rows.map(function(r){return r.p;}),grand:P,stacked:true,
+    series:[{name:'Actual staff',data:rows.map(function(r){return r.a;}),color:'c1'},{name:'Vacant positions',data:rows.map(function(r){return r.v;}),color:'c3'}],
+    table:{head:[byCat?'Rank / category':'Department / unit','Approved positions','Actual staff','Vacant','Fill rate'],num:[false,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.l,cells:[r.l,fmt(r.p),fmt(r.a),fmt(r.v),pct(r.a,r.p)]};}),
+      foot:['All',fmt(P),fmt(A),fmt(V),pct(A,P)]}};
+}
+
 /* ---------- card definitions ---------- */
 var CARDS={};
 CARDS.students=[
@@ -1051,10 +1096,8 @@ CARDS.staff=[
  {id:'t-rank',sec:'staff',src:'staff',cls:'w6',title:'Faculty by rank',sub:'Academic and admin-academic staff',dim:'rank',stack:'type',kinds:['bar','doughnut'],unit:'Faculty',where:function(r){return !!r.rank;}},
  {id:'t-vstatus',sec:'staff',src:'vac',cls:'w6',title:'Recruitment pipeline',sub:'Where open vacancies stand',dim:'vstatus',stack:'type',kinds:['doughnut','bar'],unit:'Vacancies'},
  {id:'t-load',sec:'staff',cls:'w6',title:'Workload by department',sub:'Average workload as a % of contractual norm (100% = full norm)',dim:'dept',kinds:['hbar','bar'],unit:'Staff',build:loadBuild},
- {id:'t-plan-dept',sec:'staff',cls:'w6',title:'Approved vs actual staff by department',sub:'Approved positions = filled positions plus open vacancies. Share % shows the fill rate.',dim:'dept',kinds:['hbar','bar'],unit:'Positions',percentable:true,build:planBuild('dept',ALLDEPTS)},
- {id:'t-plan-rank',sec:'staff',cls:'w6',title:'Approved vs actual staff by rank',sub:'Academic ranks and administrative staff. Share % shows the fill rate.',dim:'cat',kinds:['bar','hbar'],unit:'Positions',percentable:true,build:planBuild('cat',RANKS.concat(['Administrative']))},
- {id:'t-gender-rank',sec:'staff',src:'staff',cls:'w6',title:'Gender by rank',sub:'Women and men in each academic rank and in administrative roles',dim:'cat',stack:'gender',kinds:['hbar','bar'],unit:'Staff',percentable:true},
- {id:'t-gender-dept',sec:'staff',src:'staff',cls:'w6',title:'Gender by department',sub:'Women and men in each department or unit',dim:'dept',stack:'gender',kinds:['hbar','bar'],unit:'Staff',percentable:true}
+ {id:'t-plan',sec:'staff',cls:'w12',title:'Approved vs actual staff by department and rank',sub:'Approved positions = filled positions plus open vacancies. Switch between rank and department, or narrow to one. Share % shows the fill rate.',dim:'dept',kinds:['hbar','bar'],unit:'Positions',percentable:true,state:{by:'dept',pick:''},build:planBuild2,extra:genderExtra},
+ {id:'t-gender',sec:'staff',cls:'w12',title:'Gender by rank and department',sub:'Switch between rank and department, or narrow the view to one department or rank. Share % shows the gender balance.',dim:'cat',kinds:['hbar','bar'],unit:'Staff',percentable:true,state:{by:'cat',pick:''},build:genderBuild,extra:genderExtra}
 ];
 CARDS.pubs=[
  {id:'p-q',sec:'pubs',src:'pubs',cls:'w4',title:'Publications by quartile',sub:'Journal quartile of each publication',dim:'q',kinds:['doughnut','bar'],unit:'Publications',multicolor:true},
