@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SSH Institutional Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef1f5; --surface:#ffffff; --surface-2:#f6f8fb; --ink:#101c2e; --ink-2:#4b586b; --ink-3:#8491a3;
+  --line:#dde3ea; --accent:#1f4fa3; --accent-soft:#e6edf9; --danger:#c4452f; --good:#23856f;
+  --c1:#1f4fa3; --c2:#e0a21b; --c3:#d4553f; --c4:#2a9d8f; --c5:#7a5fb0; --c6:#e07aa0; --c7:#5aa9e6; --c8:#8392a5;
+  --side:#101c2e; --side-ink:#e8edf5; --side-ink-2:#9aa8bd; --side-hover:#1a2a42;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1320; --surface:#131f2f; --surface-2:#182638; --ink:#e8edf5; --ink-2:#a3afc0; --ink-3:#6f7d92;
+    --line:#233248; --accent:#6c97e6; --accent-soft:#1b2c4a; --danger:#ef7a65; --good:#4cc2a6;
+    --c1:#6c97e6; --c2:#eab94a; --c3:#ef7a65; --c4:#4cc2a6; --c5:#a08ad6; --c6:#ee9bb8; --c7:#7cc0f0; --c8:#9aa8bd;
+    --side:#08101b; --side-hover:#14233a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1320; --surface:#131f2f; --surface-2:#182638; --ink:#e8edf5; --ink-2:#a3afc0; --ink-3:#6f7d92;
+  --line:#233248; --accent:#6c97e6; --accent-soft:#1b2c4a; --danger:#ef7a65; --good:#4cc2a6;
+  --c1:#6c97e6; --c2:#eab94a; --c3:#ef7a65; --c4:#4cc2a6; --c5:#a08ad6; --c6:#ee9bb8; --c7:#7cc0f0; --c8:#9aa8bd;
+  --side:#08101b; --side-hover:#14233a;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.5 'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:244px minmax(0,1fr);min-height:100vh}
+
+/* Sidebar */
+.side{position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;gap:6px;padding:26px 14px 18px;background:var(--side);color:var(--side-ink)}
+.brand{display:flex;align-items:center;gap:12px;padding:0 10px 22px}
+.mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:var(--c2);color:#101c2e;font:600 17px/1 'Source Serif 4',Georgia,serif;letter-spacing:.02em}
+.brand b{display:block;font:600 16px/1.2 'Source Serif 4',Georgia,serif}
+.brand span{font-size:12px;color:var(--side-ink-2)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;border-radius:8px;background:none;color:var(--side-ink-2);text-align:left;font-weight:500}
+.nav button svg{width:18px;height:18px;fill:currentColor;flex:none}
+.nav button:hover{background:var(--side-hover);color:var(--side-ink)}
+.nav button[aria-current="page"]{background:var(--side-hover);color:#fff;box-shadow:inset 3px 0 0 var(--c2)}
+.side-foot{margin-top:auto;padding:14px 10px 0;border-top:1px solid #ffffff1f;font-size:12px;color:var(--side-ink-2);display:flex;flex-direction:column;gap:10px}
+.side-foot button{padding:8px 10px;border:1px solid #ffffff2e;border-radius:8px;background:none;color:var(--side-ink);text-align:left}
+.side-foot button:hover{background:var(--side-hover)}
+.demo{display:inline-block;padding:2px 8px;border-radius:99px;background:#e0a21b26;color:#f1c15a;font-weight:600;font-size:11px;align-self:flex-start}
+
+/* Main */
+.main{padding:28px clamp(16px,3vw,40px) 60px;min-width:0}
+.page-h{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.page-h h1{margin:0;font:600 clamp(26px,3vw,34px)/1.15 'Source Serif 4',Georgia,serif;letter-spacing:-.01em}
+.page-h p{margin:4px 0 0;color:var(--ink-2);max-width:70ch}
+.btn{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-weight:500}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Filters */
+.filters{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin-bottom:14px}
+.fgroup{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fgroup > span{color:var(--ink-2);font-weight:500;margin-right:2px}
+.chip{padding:5px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface);font-size:13px}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:500;border:0}
+.pill i{font-style:normal;display:grid;place-items:center;width:18px;height:18px;border-radius:4px;font-size:14px;line-height:1}
+.pill:hover i{background:var(--accent);color:#fff}
+
+/* KPI strip: one continuous band */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.kpi{display:block;text-align:left;padding:16px 18px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0;background:none;cursor:default}
+.kpi.click{cursor:pointer}
+.kpi.click:hover{background:var(--surface-2)}
+.kpi.on{background:var(--accent-soft)}
+.kpi .l{color:var(--ink-2);font-size:13px}
+.kpi .v{font:600 30px/1.15 'Source Serif 4',Georgia,serif;margin:4px 0 2px;font-variant-numeric:lining-nums tabular-nums}
+.kpi .s{color:var(--ink-3);font-size:12px}
+.kpi.warn .v{color:var(--danger)}
+.kpi.ok .v{color:var(--good)}
+
+/* Cards */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.card{grid-column:span 6;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px 18px;min-width:0;display:flex;flex-direction:column}
+.card.w4{grid-column:span 4}.card.w5{grid-column:span 5}.card.w7{grid-column:span 7}.card.w8{grid-column:span 8}.card.w12{grid-column:span 12}
+.card-h{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.card-h h2{margin:0;font:600 17px/1.25 'Source Serif 4',Georgia,serif}
+.card-h p{margin:2px 0 0;color:var(--ink-3);font-size:12.5px}
+.ctrls{display:flex;flex-wrap:wrap;gap:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:none;padding:4px 10px;font-size:12.5px;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:not([aria-pressed="true"]):hover{background:var(--accent-soft)}
+.mini{padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:12.5px;color:var(--ink-2)}
+.mini:hover{border-color:var(--accent);color:var(--accent)}
+select.mini{font:inherit;font-size:12.5px;color:var(--ink-2);max-width:210px}
+.chartwrap{position:relative;width:100%}
+.empty{padding:40px 10px;text-align:center;color:var(--ink-3)}
+
+/* Tables */
+.tblwrap{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:8px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{position:sticky;top:0;background:var(--surface-2);font-weight:600;color:var(--ink-2);z-index:1}
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover{color:var(--accent)}
+.tbl .num{text-align:right}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr.click{cursor:pointer}
+.tbl tbody tr.click:hover td{background:var(--surface-2)}
+.tbl tbody tr.sel td{background:var(--accent-soft);font-weight:600}
+.tbl tfoot td{position:sticky;bottom:0;background:var(--surface-2);font-weight:600;border-top:1px solid var(--line);border-bottom:0}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:500;background:var(--surface-2);border:1px solid var(--line)}
+.tag.good{color:var(--good);border-color:currentColor;background:none}
+.tag.bad{color:var(--danger);border-color:currentColor;background:none}
+.tag.mid{color:#a9760a;border-color:currentColor;background:none}
+:root[data-theme="dark"] .tag.mid{color:var(--c2)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tag.mid{color:var(--c2)}}
+.dt-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dt-bar input{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);min-width:220px;font:inherit}
+.dt-bar .cnt{color:var(--ink-3);font-size:12.5px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;color:var(--ink-2);font-size:13px}
+.pager button:disabled{opacity:.4;cursor:default}
+
+/* Modal + toast */
+.overlay{position:fixed;inset:0;background:#0a1220b0;display:grid;place-items:center;padding:16px;z-index:50}
+.modal{width:min(900px,100%);max-height:86vh;overflow:auto;background:var(--surface);border-radius:14px;border:1px solid var(--line);padding:22px}
+.modal h3{margin:0;font:600 22px/1.2 'Source Serif 4',Georgia,serif}
+.modal .meta{color:var(--ink-2);margin:4px 0 14px}
+.modal .row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.modal .stat{padding:8px 14px;border:1px solid var(--line);border-radius:8px}
+.modal .stat b{display:block;font:600 20px/1.2 'Source Serif 4',Georgia,serif}
+.modal .stat span{font-size:12px;color:var(--ink-2)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:60;font-weight:500}
+.tt{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.tt h4{margin:0 0 6px;font-size:13px;color:var(--ink-2)}
+.blk{padding:6px 8px;border-radius:6px;background:var(--accent-soft);margin-bottom:6px;font-size:12px;line-height:1.35}
+.blk b{display:block;font-variant-numeric:tabular-nums}
+.blk .rm{color:var(--ink-3)}
+@media (max-width:640px){.tt{grid-template-columns:1fr}}
+.tip{color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.ov-h{margin:0 0 8px;font:600 17px/1.3 'Source Serif 4',Georgia,serif;color:var(--ink)}
+
+@media (max-width:1100px){.card,.card.w4,.card.w5,.card.w7,.card.w8{grid-column:span 12}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;height:auto;flex-direction:row;align-items:center;padding:10px 12px;gap:8px;overflow-x:auto}
+  .brand{padding:0 8px 0 0}.brand span,.side-foot .demo,.side-foot .asof{display:none}
+  .nav{flex-direction:row}.nav button{width:auto;white-space:nowrap;padding:8px 12px}
+  .nav button[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--c2)}
+  .side-foot{margin:0 0 0 auto;padding:0;border:0;flex-direction:row}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="mark">SSH</div><div><b>SSH Dashboard</b><span>Institutional analytics</span></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <span class="demo">Demo data</span>
+      <span class="asof" id="asof"></span>
+      <button id="themeBtn" type="button">Switch theme</button>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<!-- ======================= DATA (demo, seeded) ======================= -->
+<script>
+/* Demo dataset. Replace the generated arrays STU, STAFF, VAC and PUBS with real records
+   that use the same field names and the dashboard will update automatically. */
+(function(){
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+var rnd=mulberry32(20261013);
+function wp(pairs){var t=0,i;for(i=0;i<pairs.length;i++)t+=pairs[i][1];var x=rnd()*t;for(i=0;i<pairs.length;i++){x-=pairs[i][1];if(x<=0)return pairs[i][0];}return pairs[pairs.length-1][0];}
+function pick(a){return a[Math.floor(rnd()*a.length)];}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function pad(n,l){return String(n).padStart(l,'0');}
+
+var AY=2026;
+var TODAY=new Date();
+var DEPTS=['Economics','Political Science & IR','Sociology & Anthropology','History & Philosophy','Languages & Linguistics'];
+var UNITS=["Dean's Office","Registrar & Admissions","Student Services","Research & Grants Office","Finance & HR","IT & Digital Learning"];
+var RANKS=['Professor','Associate Professor','Assistant Professor','Senior Lecturer','Lecturer'];
+var YEARS=[2022,2023,2024,2025,2026];
+var COURSES=['UG Year 1','UG Year 2','UG Year 3','UG Year 4','Master Year 1','Master Year 2','PhD Year 1','PhD Year 2','PhD Year 3','PhD Year 4'];
+
+/* ---------- Students ---------- */
+var MAJORS=[
+ {n:'Economics',d:DEPTS[0],f:52,L:{UG:26,Master:30,PhD:30}},
+ {n:'Political Science & IR',d:DEPTS[1],f:55,L:{UG:22,Master:24,PhD:22}},
+ {n:'Eurasian Studies',d:DEPTS[1],f:58,L:{Master:12}},
+ {n:'Sociology',d:DEPTS[2],f:68,L:{UG:12,Master:14,PhD:14}},
+ {n:'Anthropology',d:DEPTS[2],f:66,L:{UG:7,Master:8}},
+ {n:'History',d:DEPTS[3],f:50,L:{UG:8,Master:6,PhD:14}},
+ {n:'Philosophy',d:DEPTS[3],f:46,L:{UG:6}},
+ {n:'Linguistics',d:DEPTS[4],f:72,L:{UG:7,Master:6,PhD:20}},
+ {n:'World Languages',d:DEPTS[4],f:78,L:{UG:12}}
+];
+var YR={UG:[[1,30],[2,26],[3,23],[4,21]],Master:[[1,55],[2,45]],PhD:[[1,30],[2,27],[3,23],[4,20]]};
+var FUND={
+ UG:[['Self-paid',40],['State Grant',20],['Abai Grant',10],['Alash Grant',18],['Partial Alash Grant',12]],
+ Master:[['Self-paid',30],['State Grant',35],['Abai Grant',10],['Alash Grant',15],['Partial Alash Grant',10]],
+ PhD:[['Self-paid',10],['State Grant',55],['Abai Grant',10],['Alash Grant',20],['Partial Alash Grant',5]]
+};
+var COUNTRIES=[['Kazakhstan',86],['Uzbekistan',3.5],['Kyrgyzstan',2.5],['Tajikistan',1.5],['Turkmenistan',.8],['Russia',1.5],['China',1.2],['Mongolia',.8],['Turkey',.7],['Other',1.5]];
+var CITIES={
+ 'Kazakhstan':[['Astana',30],['Almaty',18],['Shymkent',9],['Karaganda',7],['Aktobe',5],['Atyrau',4],['Pavlodar',4],['Kostanay',4],['Semey',3],['Oral',3],['Taraz',3],['Other cities',10]],
+ 'Uzbekistan':[['Tashkent',60],['Samarkand',20],['Other cities',20]],
+ 'Kyrgyzstan':[['Bishkek',65],['Osh',20],['Other cities',15]],
+ 'Tajikistan':[['Dushanbe',70],['Khujand',30]],
+ 'Turkmenistan':[['Ashgabat',100]],
+ 'Russia':[['Moscow',45],['Saint Petersburg',25],['Novosibirsk',30]],
+ 'China':[['Beijing',40],['Urumqi',35],['Shanghai',25]],
+ 'Mongolia':[['Ulaanbaatar',100]],
+ 'Turkey':[['Istanbul',60],['Ankara',40]],
+ 'Other':[['Other cities',100]]
+};
+var STU=[],i;
+for(i=0;i<1020;i++){
+  var level=wp([['UG',63],['Master',27],['PhD',10]]);
+  var y=wp(YR[level]);
+  var maj=wp(MAJORS.filter(function(m){return m.L[level];}).map(function(m){return [m,m.L[level]];}));
+  var status=rnd()<(y===1?0.012:(level==='PhD'?0.07:0.05))?'LOA':'Active';
+  var country=wp(COUNTRIES);
+  STU.push({level:level,major:maj.n,dept:maj.d,year:y,course:level+' Year '+y,cohort:String(AY-(y-1)),status:status,
+    gender:(rnd()*100<maj.f)?'Female':'Male',funding:wp(FUND[level]),country:country,city:wp(CITIES[country])});
+}
+var LORD={UG:0,Master:1,PhD:2};
+STU.sort(function(a,b){return (b.cohort-a.cohort)||(LORD[a.level]-LORD[b.level]);});
+var cc={};
+STU.forEach(function(s){cc[s.cohort]=(cc[s.cohort]||0)+1;s.id='SSH-'+s.cohort.slice(2)+'-'+pad(cc[s.cohort],4);});
+
+/* ---------- Staff ---------- */
+var FN=['Aigerim','Dana','Madina','Aizhan','Saltanat','Zhanar','Gulnara','Ainur','Dinara','Asel','Nurlan','Serik','Arman','Daniyar','Yerlan','Timur','Askar','Bauyrzhan','Marat','Rustem','Elena','Olga','Natalia','Irina','Dmitry','Andrei','Sergei','Michael','Sarah','David','Anna','James','Li','Wei','Yusuf','Kamila','Aliya','Murat','Ruslan','Karina'];
+var LN=['Abenov','Seitkali','Nurgaliyev','Kassymov','Zhumabekov','Omarov','Tulegenov','Bekov','Ismailov','Sadykov','Akhmetov','Dzhaksybekov','Kairatov','Mukhamedov','Ivanov','Petrov','Sokolov','Volkov','Smith','Johnson','Chen','Wang','Karimov','Yusupov','Rakhimov','Tokayev','Baimukhanov','Alibekov','Kenzhebayev','Ospanov'];
+var used={};
+function uname(){for(var t=0;t<60;t++){var n=pick(FN)+' '+pick(LN);if(!used[n]){used[n]=1;return n;}}return pick(FN)+' '+pick(LN)+' '+pick(['A.','B.','C.','D.']);}
+function nrm(m,sd){var z=(rnd()+rnd()+rnd()+rnd()-2)*1.73;return Math.round(clamp(m+z*sd,55,160));}
+function bucket(v){return v<80?'<80%':v<=100?'80–100%':v<=120?'101–120%':'>120%';}
+var STAFF=[],sid=1;
+function add(o){o.id='E-'+pad(sid++,3);o.name=uname();o.lb=bucket(o.load);STAFF.push(o);}
+
+var ACAD={};
+ACAD[DEPTS[0]]=[3,4,5,2,2];ACAD[DEPTS[1]]=[2,4,4,2,2];ACAD[DEPTS[2]]=[2,3,4,2,2];ACAD[DEPTS[3]]=[2,2,3,2,1];ACAD[DEPTS[4]]=[1,3,4,4,3];
+var LMEAN={};LMEAN[DEPTS[0]]=106;LMEAN[DEPTS[1]]=100;LMEAN[DEPTS[2]]=96;LMEAN[DEPTS[3]]=92;LMEAN[DEPTS[4]]=108;
+DEPTS.forEach(function(d){
+  ACAD[d].forEach(function(cnt,ri){
+    for(var k=0;k<cnt;k++){
+      var fte=(ri>=3&&rnd()<0.2)?0.5:(rnd()<0.04?0.75:1);
+      add({type:'Academic',dept:d,home:d,position:RANKS[ri],rank:RANKS[ri],fte:fte,teach:fte,load:nrm(LMEAN[d],14)});
+    }
+  });
+});
+[[DEPTS[0],'Department Chair','Professor',DEPTS[0]],[DEPTS[0],'Program Director','Associate Professor',DEPTS[0]],
+ [DEPTS[1],'Department Chair','Professor',DEPTS[1]],[DEPTS[1],'Program Director','Associate Professor',DEPTS[1]],
+ [DEPTS[2],'Department Chair','Professor',DEPTS[2]],[DEPTS[3],'Department Chair','Professor',DEPTS[3]],
+ [DEPTS[4],'Department Chair','Associate Professor',DEPTS[4]],[DEPTS[4],'Program Director','Associate Professor',DEPTS[4]],
+ [UNITS[0],'Associate Dean, Academic Affairs','Professor',DEPTS[0]],[UNITS[0],'Associate Dean, Research','Professor',DEPTS[1]],
+ [UNITS[0],'Associate Dean, Graduate Studies','Professor',DEPTS[2]]
+].forEach(function(a){add({type:'Admin-Academic',dept:a[0],home:a[3],position:a[1],rank:a[2],fte:1,teach:0.5,load:nrm(112,12)});});
+var ADMIN=[
+ [UNITS[0],["Head of Dean's Office",'Executive Assistant','Project Manager','Communications Officer'],100],
+ [UNITS[1],['Registrar','Deputy Registrar','Admissions Officer','Admissions Officer','Records Specialist','Records Specialist','Scheduling Coordinator'],112],
+ [UNITS[2],['Head of Student Services','Academic Advisor','Academic Advisor','Career Counselor','Student Life Coordinator','Wellbeing Coordinator'],108],
+ [UNITS[3],['Research Office Manager','Grants Specialist','Publications Coordinator','Research Data Analyst'],92],
+ [UNITS[4],['Finance Manager','Accountant','HR Partner','HR Specialist','Procurement Specialist'],98],
+ [UNITS[5],['IT Lead','LMS Administrator','Systems Specialist','Instructional Designer'],102],
+ [DEPTS[0],['Department Coordinator','Department Coordinator'],100],[DEPTS[1],['Department Coordinator'],100],
+ [DEPTS[2],['Department Coordinator'],100],[DEPTS[3],['Department Coordinator'],100],[DEPTS[4],['Department Coordinator','Department Coordinator'],100]
+];
+ADMIN.forEach(function(u){u[1].forEach(function(p){add({type:'Administrative',dept:u[0],home:null,position:p,rank:null,fte:1,teach:0,load:nrm(u[2],12)});});});
+
+var VAC_SRC=[
+ [DEPTS[0],'Academic','Assistant Professor','Open'],[DEPTS[0],'Academic','Assistant Professor','Open'],[DEPTS[0],'Academic','Associate Professor','Interviewing'],
+ [DEPTS[1],'Academic','Assistant Professor','Offer made'],[DEPTS[1],'Academic','Senior Lecturer','Open'],
+ [DEPTS[2],'Academic','Assistant Professor','Open'],
+ [DEPTS[3],'Academic','Assistant Professor','Interviewing'],[DEPTS[3],'Academic','Lecturer','Open'],
+ [DEPTS[4],'Academic','Senior Lecturer','Open'],[DEPTS[4],'Academic','Lecturer','Interviewing'],
+ [UNITS[1],'Administrative','Records Specialist','Open'],[UNITS[2],'Administrative','Academic Advisor','Interviewing'],
+ [UNITS[3],'Administrative','Grants Specialist','Open'],[UNITS[5],'Administrative','Systems Specialist','Open'],
+ [UNITS[4],'Administrative','Accountant','Offer made'],
+ [UNITS[0],'Admin-Academic','Associate Dean, Student Affairs','Open'],[DEPTS[4],'Admin-Academic','Program Director','Interviewing']
+];
+var VAC=VAC_SRC.map(function(v,k){
+  var days=Math.round(12+rnd()*190);
+  var d=new Date(TODAY.getTime()-days*86400000);
+  return {id:'V-'+pad(k+1,3),dept:v[0],type:v[1],position:v[2],status:v[3],days:days,opened:d.toISOString().slice(0,10)};
+});
+
+/* ---------- Faculty & publications ---------- */
+var FAC=STAFF.filter(function(s){return s.type!=='Administrative';}).map(function(s){
+  return {id:s.id,name:s.name,dept:s.home,org:s.dept,rank:s.rank,type:s.type,teach:s.teach};
+});
+var TOP={};
+TOP[DEPTS[0]]=['Monetary policy transmission','Labour market dynamics','Public debt sustainability','Trade and regional integration','Household finance','Energy economics','Firm productivity','Fiscal decentralisation'];
+TOP[DEPTS[1]]=['Regional security','Electoral behaviour','State capacity','Foreign policy alignment','Institutional reform','Multilateral diplomacy','Authoritarian resilience','Migration governance'];
+TOP[DEPTS[2]]=['Urban mobility','Social capital','Youth transitions','Ritual and identity','Family and kinship','Perceptions of inequality','Everyday religion','Digital communities'];
+TOP[DEPTS[3]]=['Imperial frontiers','Oral histories','Ethics of technology','Archival practices','Nomadic polities','Memory and heritage','Political theory','Philosophy of language'];
+TOP[DEPTS[4]]=['Multilingual education','Language contact','The syntax–semantics interface','Corpus approaches','Translation studies','Script reform','Second language acquisition','Discourse analysis'];
+var CTX=['in Central Asia','in post-Soviet states','across Eurasia','in Kazakhstan','in comparative perspective','since 1991','in emerging economies','in the twenty-first century'];
+var RATE={Professor:2.4,'Associate Professor':1.9,'Assistant Professor':1.6,'Senior Lecturer':0.7,Lecturer:0.4};
+var QW={Professor:[30,28,20,10,12],'Associate Professor':[24,26,22,13,15],'Assistant Professor':[20,24,24,14,18],'Senior Lecturer':[10,18,24,18,30],Lecturer:[8,16,24,20,32]};
+var QN=['Q1','Q2','Q3','Q4','Not ranked'];
+var QD={};QD[DEPTS[0]]=1.25;QD[DEPTS[1]]=1.1;QD[DEPTS[2]]=1.0;QD[DEPTS[3]]=0.85;QD[DEPTS[4]]=0.8;
+function poisson(l){var L=Math.exp(-l),k=0,p=1;do{k++;p*=rnd();}while(p>L);return k-1;}
+var PUBS=[],pid=1;
+FAC.forEach(function(f){
+  YEARS.forEach(function(yr){
+    var l=RATE[f.rank]*(f.type==='Admin-Academic'?0.7:1)*(yr===2026?0.8:1);
+    var n=poisson(l);
+    for(var k=0;k<n;k++){
+      var w=QW[f.rank].slice();w[0]*=QD[f.dept];
+      var q=wp(QN.map(function(nm,ix){return [nm,w[ix]];}));
+      PUBS.push({id:'P-'+pad(pid++,4),fid:f.id,faculty:f.name,dept:f.dept,rank:f.rank,year:yr,q:q,title:pick(TOP[f.dept])+' '+pick(CTX)});
+    }
+  });
+});
+
+/* ---------- Alumni outcomes (past entry cohorts) ---------- */
+var SPHERES=['Public sector','Education & research','Private sector','Finance & banking','International organizations','NGO & civil society','Consulting & analytics'];
+var SPH_W=[24,16,22,14,8,7,9];
+var SPH_MOD={};
+SPH_MOD[DEPTS[0]]=[1,.6,1,2,.8,.5,1.5];
+SPH_MOD[DEPTS[1]]=[1.5,1,.8,.4,2,1.2,.8];
+SPH_MOD[DEPTS[2]]=[.8,1.2,.7,.3,.8,2.5,1.2];
+SPH_MOD[DEPTS[3]]=[1.2,2,.5,.2,.6,1.2,.3];
+SPH_MOD[DEPTS[4]]=[.8,1.8,1,.4,1.4,1,.6];
+var EMOD={};EMOD[DEPTS[0]]=1.15;EMOD[DEPTS[1]]=1;EMOD[DEPTS[2]]=.95;EMOD[DEPTS[3]]=.85;EMOD[DEPTS[4]]=.9;
+var HC={UG:[2019,2020,2021,2022],Master:[2021,2022,2023,2024],PhD:[2019,2020,2021,2022]};
+var HN={UG:165,Master:80,PhD:24},DUR={UG:4,Master:2,PhD:4};
+var OUTW={UG:[74,8,1,17],Master:[80,8,2,10],PhD:[38,22,20,20]};
+var EMPW={UG:[52,30,12,6],Master:[70,10,12,8],PhD:[84,4,8,4]};
+var HIST=[],hid=1;
+['UG','Master','PhD'].forEach(function(lv){
+  HC[lv].forEach(function(co){
+    var n=Math.round(HN[lv]*(0.92+rnd()*0.16));
+    for(var k=0;k<n;k++){
+      var maj=wp(MAJORS.filter(function(m){return m.L[lv];}).map(function(m){return [m,m.L[lv]];}));
+      var funding=wp(FUND[lv]),country=wp(COUNTRIES);
+      var w=OUTW[lv].slice();
+      if(co+DUR[lv]>=AY){w[2]+=w[1];w[1]=0;}
+      w[3]*=(funding==='Self-paid'?1.3:0.8);
+      var outcome=wp([['Graduated on time',w[0]],['Graduated late',w[1]],['Still enrolled',w[2]],['Withdrawn',w[3]]]);
+      var leftYear=null,emp=null,sphere=null;
+      if(outcome==='Withdrawn')leftYear=wp(lv==='Master'?[[1,60],[2,40]]:[[1,50],[2,30],[3,20]]);
+      if(outcome.indexOf('Graduated')===0){
+        var ew=EMPW[lv];
+        emp=wp([['Employed',ew[0]*EMOD[maj.d]],['Further study',ew[1]],['Seeking',ew[2]],['Not reported',ew[3]]]);
+        if(emp==='Employed'){
+          sphere=wp(SPHERES.map(function(sn,ix){return [sn,SPH_W[ix]*SPH_MOD[maj.d][ix]*((lv==='PhD'&&ix===1)?4:1)];}));
+        }
+      }
+      HIST.push({id:'ALM-'+String(co).slice(2)+'-'+pad(hid++,4),level:lv,major:maj.n,dept:maj.d,hcohort:String(co),funding:funding,
+        gender:(rnd()*100<maj.f)?'Female':'Male',country:country,city:wp(CITIES[country]),outcome:outcome,leftYear:leftYear,emp:emp,sphere:sphere});
+    }
+  });
+});
+
+/* ---------- Timetable (Fall 2026) and teaching workload ---------- */
+var NORM_H={Professor:6,'Associate Professor':8,'Assistant Professor':9,'Senior Lecturer':12,Lecturer:14};
+var CAT={};
+CAT[DEPTS[0]]=[['ECON 101','Principles of Economics','UG'],['ECON 210','Microeconomics','UG'],['ECON 220','Macroeconomics','UG'],['ECON 301','Econometrics','UG'],['ECON 340','Labour Economics','UG'],['ECON 510','Advanced Microeconomics','Master'],['ECON 520','Advanced Macroeconomics','Master'],['ECON 701','Doctoral Seminar in Economics','PhD']];
+CAT[DEPTS[1]]=[['POLS 101','Introduction to Political Science','UG'],['IR 120','Introduction to International Relations','UG'],['POLS 230','Comparative Politics','UG'],['IR 310','Security Studies','UG'],['POLS 340','Public Policy Analysis','UG'],['IR 510','Theories of International Relations','Master'],['EUR 520','Eurasian Regional Politics','Master'],['POLS 701','Doctoral Seminar in Political Science','PhD']];
+CAT[DEPTS[2]]=[['SOC 101','Introduction to Sociology','UG'],['ANT 110','Cultural Anthropology','UG'],['SOC 220','Social Research Methods','UG'],['SOC 310','Social Inequality','UG'],['ANT 330','Ethnography','UG'],['SOC 510','Advanced Social Theory','Master'],['ANT 520','Anthropology of Eurasia','Master'],['SOC 701','Doctoral Seminar in Sociology','PhD']];
+CAT[DEPTS[3]]=[['HIST 101','World History','UG'],['HIST 210','History of Central Asia','UG'],['PHIL 120','Introduction to Philosophy','UG'],['PHIL 240','Ethics','UG'],['HIST 330','Historiography','UG'],['HIST 510','Imperial and Post-Soviet History','Master'],['PHIL 520','Political Philosophy','Master'],['HIST 701','Doctoral Seminar in History','PhD']];
+CAT[DEPTS[4]]=[['LING 101','Introduction to Linguistics','UG'],['LANG 110','Academic English','UG'],['LANG 120','Kazakh Language','UG'],['LANG 130','Russian Language','UG'],['LING 320','Sociolinguistics','UG'],['LING 510','Language Contact','Master'],['LING 520','Corpus Linguistics','Master'],['LING 701','Doctoral Seminar in Linguistics','PhD']];
+var LVW={Professor:[40,40,20],'Associate Professor':[55,35,10],'Assistant Professor':[70,25,5],'Senior Lecturer':[100,0,0],Lecturer:[100,0,0]};
+var TIMES=[['09:00','10:30'],['10:30','12:00'],['12:00','13:30'],['14:00','15:30'],['15:30','17:00'],['17:00','18:30']];
+var PATS=[['Mon','Wed'],['Tue','Thu']];
+var WDAYS=['Mon','Tue','Wed','Thu','Fri'];
+var SCHED=[],secId=1;
+STAFF.forEach(function(s){
+  if(s.type==='Administrative')return;
+  var norm=(s.type==='Admin-Academic')?6:NORM_H[s.rank];
+  s.norm=norm;
+  var target=norm*s.fte*s.load/100;
+  var busy={},hours=0,guard=0;
+  while(hours<target-0.7&&guard++<12){
+    var three=(target-hours)>=2.25;
+    var lvl=wp([['UG',LVW[s.rank][0]],['Master',LVW[s.rank][1]],['PhD',LVW[s.rank][2]]]);
+    var course=pick(CAT[s.home].filter(function(c){return c[2]===lvl;}));
+    var placed=null,tries=0;
+    while(!placed&&tries++<40){
+      var tm=pick(TIMES);
+      if(three){var pat=pick(PATS);if(!busy[pat[0]+tm[0]]&&!busy[pat[1]+tm[0]])placed=pat.map(function(d){return{d:d,s:tm[0],e:tm[1]};});}
+      else{var d1=pick(WDAYS);if(!busy[d1+tm[0]])placed=[{d:d1,s:tm[0],e:tm[1]}];}
+    }
+    if(!placed)break;
+    placed.forEach(function(p){busy[p.d+p.s]=1;});
+    var hh=three?3:1.5;
+    hours+=hh;
+    var cap=lvl==='UG'?[18,45]:lvl==='Master'?[8,22]:[4,10];
+    SCHED.push({id:'SEC-'+pad(secId++,3),fid:s.id,code:course[0],title:course[1],level:lvl,slots:placed,hours:hh,
+      students:cap[0]+Math.floor(rnd()*(cap[1]-cap[0]+1)),room:pick(['A','B','C'])+'-'+(100+Math.floor(rnd()*3)*100+Math.floor(rnd()*20)+1)});
+  }
+  s.hours=hours;
+  s.load=Math.round(hours/(norm*s.fte)*100);
+  s.lb=bucket(s.load);
+});
+
+/* ---------- Infrastructure: space allocation and IT equipment ---------- */
+var SPACE=[],rid=1;
+var HOMEB={};HOMEB[DEPTS[0]]='B';HOMEB[DEPTS[1]]='B';HOMEB[DEPTS[2]]='C';HOMEB[DEPTS[3]]='C';HOMEB[DEPTS[4]]='C';
+HOMEB[UNITS[0]]='A';HOMEB[UNITS[1]]='A';HOMEB[UNITS[2]]='A';HOMEB[UNITS[3]]='B';HOMEB[UNITS[4]]='A';HOMEB[UNITS[5]]='D';
+function rr(a,b){return a+Math.round(rnd()*(b-a));}
+function room(block,type,dept,staff,area){var fl=rr(1,4);SPACE.push({id:'SP-'+pad(rid++,3),block:'Block '+block,floor:fl,room:block+'-'+fl+pad(rr(1,40),2),type:type,dept:dept,staff:staff,area:area});}
+function hcBy(d,t){return STAFF.filter(function(s){return s.dept===d&&s.type===t;}).length;}
+var ALLU=DEPTS.concat(UNITS);
+ALLU.forEach(function(d){
+  var b=HOMEB[d],j;
+  var na=hcBy(d,'Academic'),nm=hcBy(d,'Admin-Academic'),nd=hcBy(d,'Administrative');
+  for(j=0;j<Math.ceil(na*0.8);j++)room(b,'Office',d,'Academic',rr(12,20));
+  for(j=0;j<nm;j++)room(b,'Office',d,'Admin-Academic',rr(16,24));
+  for(j=0;j<Math.ceil(nd/2);j++)room(b,'Office',d,'Administrative',rr(14,30));
+  if(DEPTS.indexOf(d)>=0){room(b,'Meeting room',d,'Academic',rr(18,26));room(b,'Storage',d,'Academic',rr(8,16));}
+});
+var LABS=[[DEPTS[0],[64,58]],[DEPTS[1],[60]],[DEPTS[2],[46,52]],[DEPTS[3],[44]],[DEPTS[4],[78,72,40]]];
+LABS.forEach(function(l){l[1].forEach(function(a){room('D','Laboratory',l[0],'Academic',a+rr(-4,4));});});
+var STOR=[[UNITS[0],14,20],[UNITS[1],44,52],[UNITS[2],10,14],[UNITS[3],8,12],[UNITS[4],26,34],[UNITS[5],24,32]];
+STOR.forEach(function(s){room(HOMEB[s[0]],'Storage',s[0],'Administrative',rr(s[1],s[2]));});
+room('D','Storage','Shared','Shared',90);room('D','Storage','Shared','Shared',60);
+room('A','Meeting room',UNITS[0],'Admin-Academic',44);room('A','Meeting room',UNITS[1],'Administrative',16);
+room('A','Meeting room',UNITS[2],'Administrative',10);room('A','Meeting room',UNITS[2],'Administrative',11);
+var qq;
+for(qq=0;qq<14;qq++)room(pick(['A','C','D']),'Classroom','Shared','Shared',rr(40,90));
+for(qq=0;qq<3;qq++)room(pick(['A','C']),'Classroom','Shared','Shared',rr(120,160));
+room('A','Common area','Shared','Shared',130);room('C','Common area','Shared','Shared',62);room('A','Common area','Shared','Shared',46);room('D','Common area','Shared','Shared',120);
+
+var IT_TYPES=['Desktop computer','Laptop','Lab workstation','Server','Network equipment','Printer & MFP','Projector & display','Video-conferencing kit'];
+var ITY=[2018,2019,2020,2021,2022,2023,2024,2025,2026];
+var ITW=[3,4,6,8,10,12,14,16,9];
+var IT=[];
+function itLots(type,dept,qty,fixedBlock){
+  var cnt={},k;
+  for(k=0;k<qty;k++){
+    var yy=wp(ITY.map(function(y0,ix){return [y0,ITW[ix]];}));
+    var bb=fixedBlock||(dept==='Shared'?pick(['A','C','D']):HOMEB[dept]);
+    var key=yy+'|'+bb;cnt[key]=(cnt[key]||0)+1;
+  }
+  Object.keys(cnt).forEach(function(key){var p=key.split('|');IT.push({id:'IT-'+pad(IT.length+1,4),type:type,dept:dept,year:+p[0],block:'Block '+p[1],qty:cnt[key]});});
+}
+ALLU.forEach(function(d){
+  var na=hcBy(d,'Academic'),nm=hcBy(d,'Admin-Academic'),nd=hcBy(d,'Administrative'),isU=UNITS.indexOf(d)>=0;
+  itLots('Desktop computer',d,Math.round(nd*0.9+na*0.3+nm*0.5));
+  itLots('Laptop',d,Math.round((na+nm)*1.0+nd*0.4));
+  itLots('Printer & MFP',d,isU?rr(3,6):rr(2,4));
+  itLots('Network equipment',d,isU?rr(3,6):rr(4,8));
+  itLots('Projector & display',d,rr(1,3));
+  itLots('Video-conferencing kit',d,d===UNITS[0]?2:1);
+});
+[[DEPTS[0],24],[DEPTS[1],16],[DEPTS[2],10],[DEPTS[3],8],[DEPTS[4],30]].forEach(function(a){itLots('Lab workstation',a[0],a[1],'D');});
+[[UNITS[5],10],[UNITS[3],2],[DEPTS[0],2],[DEPTS[1],1],[UNITS[1],2],[UNITS[4],1]].forEach(function(a){itLots('Server',a[0],a[1],'D');});
+itLots('Desktop computer','Shared',28);itLots('Network equipment','Shared',60);itLots('Projector & display','Shared',30);itLots('Video-conferencing kit','Shared',6);itLots('Printer & MFP','Shared',8);
+
+window.SSH_DATA={SPACE:SPACE,IT:IT,IT_TYPES:IT_TYPES,ITY:ITY,SCHED:SCHED,HIST:HIST,AY:AY,TODAY:TODAY,DEPTS:DEPTS,UNITS:UNITS,RANKS:RANKS,YEARS:YEARS,COURSES:COURSES,QN:QN,STU:STU,STAFF:STAFF,VAC:VAC,FAC:FAC,PUBS:PUBS,TARGET_SF:15};
+})();
+</script>
+
+<!-- ======================= APP ======================= -->
+<script>
+(function(){
+'use strict';
+var D=window.SSH_DATA;
+var STU=D.STU,STAFF=D.STAFF,VAC=D.VAC,FAC=D.FAC,PUBS=D.PUBS,DEPTS=D.DEPTS,UNITS=D.UNITS,RANKS=D.RANKS;
+var ALLDEPTS=DEPTS.concat(UNITS);
+var SCHED=D.SCHED;
+var TARGET=D.TARGET_SF;
+var HAS_CHART=typeof Chart!=='undefined';
+
+/* ---------- helpers ---------- */
+function fmt(n){return Number(n).toLocaleString('en-US');}
+function pct(n,d,dp){return d?(n/d*100).toFixed(dp==null?1:dp)+'%':'—';}
+function isOther(l){return /^Other/.test(l);}
+function h(tag,props){
+  var e=document.createElement(tag),k,v;
+  if(props)for(k in props){v=props[k];
+    if(k==='class')e.className=v;
+    else if(k==='html')e.innerHTML=v;
+    else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(v!==false&&v!=null)e.setAttribute(k,v===true?'':v);
+  }
+  for(var i=2;i<arguments.length;i++)add(e,arguments[i]);
+  return e;
+}
+function add(e,kid){
+  if(kid==null||kid===false)return;
+  if(Array.isArray(kid)){kid.forEach(function(x){add(e,x);});return;}
+  e.append(kid.nodeType?kid:String(kid));
+}
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function T(){return{ink:cssv('--ink'),ink2:cssv('--ink-2'),ink3:cssv('--ink-3'),line:cssv('--line'),surface:cssv('--surface'),
+  c:[1,2,3,4,5,6,7,8].map(function(i){return cssv('--c'+i);})};}
+function fade(hex,on){return on?hex+'45':hex;}
+function colorFor(dim,name,i,t){var k=dim&&dim.colors&&dim.colors[name];return k?t.c[k-1]:t.c[i%8];}
+function cv(t,key){return t.c[parseInt(String(key).slice(1),10)-1];}
+function wrap(s,n){var out=[],cur='';String(s).split(' ').forEach(function(w){if((cur+' '+w).trim().length>n&&cur){out.push(cur);cur=w;}else cur=(cur+' '+w).trim();});if(cur)out.push(cur);return out;}
+function isDark(){var a=document.documentElement.getAttribute('data-theme');return a?a==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;}
+var toastT;
+function toast(msg){var old=document.querySelector('.toast');if(old)old.remove();var el=h('div',{class:'toast',role:'status'},msg);document.body.append(el);clearTimeout(toastT);toastT=setTimeout(function(){el.remove();},1800);}
+function copyText(txt){
+  function fallback(){var ta=h('textarea',{style:'position:fixed;opacity:0'});ta.value=txt;document.body.append(ta);ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}ta.remove();toast(ok?'Table copied. Paste it into Excel or Sheets.':'Copy is blocked in this browser.');}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('Table copied. Paste it into Excel or Sheets.');},fallback);}else fallback();
+}
+var UI={};
+function ui(id,def){return UI[id]||(UI[id]=Object.assign({},def));}
+function seg(opts,cur,on,label){
+  return h('div',{class:'seg',role:'group','aria-label':label||'View'},opts.map(function(o){
+    return h('button',{type:'button','aria-pressed':String(o[0]===cur),onclick:function(){on(o[0]);}},o[1]);
+  }));
+}
+
+/* ---------- dimensions & sections ---------- */
+var SEC={};
+SEC.students={key:'students',filters:{},sources:{students:STU,hist:D.HIST},quick:['level','status'],dims:{
+  status:{label:'Status',get:function(r){return r.status;},order:['Active','LOA'],srcs:['students'],colors:{Active:1,LOA:3}},
+  level:{label:'Level',get:function(r){return r.level;},order:['UG','Master','PhD'],colors:{UG:1,Master:2,PhD:4}},
+  major:{label:'Major',get:function(r){return r.major;}},
+  dept:{label:'Department',get:function(r){return r.dept;},order:DEPTS},
+  course:{label:'Course',get:function(r){return r.course;},order:D.COURSES,srcs:['students']},
+  cohort:{label:'Cohort (admission year)',get:function(r){return r.cohort;},order:['2023','2024','2025','2026'],srcs:['students']},
+  gender:{label:'Gender',get:function(r){return r.gender;},order:['Female','Male'],colors:{Female:6,Male:7}},
+  funding:{label:'Funding',get:function(r){return r.funding;},order:['Self-paid','State Grant','Abai Grant','Alash Grant','Partial Alash Grant'],colors:{'Self-paid':8,'State Grant':1,'Abai Grant':2,'Alash Grant':4,'Partial Alash Grant':7}},
+  country:{label:'Country',get:function(r){return r.country;}},
+  city:{label:'City',get:function(r){return r.city;},topN:12},
+  hcohort:{label:'Entry cohort',get:function(r){return r.hcohort;},order:['2019','2020','2021','2022','2023','2024'],srcs:['hist']},
+  outcome:{label:'Outcome',get:function(r){return r.outcome;},order:['Graduated on time','Graduated late','Still enrolled','Withdrawn'],srcs:['hist']},
+  emp:{label:'Employment status',get:function(r){return r.emp||'n/a';},order:['Employed','Further study','Seeking','Not reported'],srcs:['hist'],colors:{Employed:1,'Further study':7,Seeking:3,'Not reported':8}},
+  sphere:{label:'Employment sphere',get:function(r){return r.sphere||'n/a';},srcs:['hist']}
+}};
+SEC.staff={key:'staff',filters:{},sources:{staff:STAFF,vac:VAC},quick:['type'],dims:{
+  type:{label:'Staff type',get:function(r){return r.type;},order:['Academic','Administrative','Admin-Academic'],colors:{Academic:1,Administrative:2,'Admin-Academic':4}},
+  dept:{label:'Department',get:function(r){return r.dept;},order:ALLDEPTS},
+  rank:{label:'Academic rank',get:function(r){return r.rank;},order:RANKS,srcs:['staff']},
+  lb:{label:'Workload',get:function(r){return r.lb;},order:['<80%','80–100%','101–120%','>120%'],srcs:['staff'],colors:{'<80%':7,'80–100%':1,'101–120%':2,'>120%':3}},
+  vstatus:{label:'Vacancy status',get:function(r){return r.status;},order:['Open','Interviewing','Offer made'],srcs:['vac'],colors:{Open:3,Interviewing:2,'Offer made':1}}
+}};
+SEC.pubs={key:'pubs',filters:{},sources:{pubs:PUBS,fac:FAC},quick:['year','q'],dims:{
+  year:{label:'Year',get:function(r){return String(r.year);},order:D.YEARS.map(String),srcs:['pubs']},
+  q:{label:'Quartile',get:function(r){return r.q;},order:D.QN,srcs:['pubs'],colors:{Q1:1,Q2:7,Q3:2,Q4:3,'Not ranked':8}},
+  dept:{label:'Department',get:function(r){return r.dept;},order:DEPTS},
+  rank:{label:'Rank',get:function(r){return r.rank;},order:RANKS}
+}};
+
+var SP_TYPES=['Office','Laboratory','Storage','Classroom','Meeting room','Common area'];
+var SHARED_ORDER=ALLDEPTS.concat(['Shared']);
+function ageBucket(y){var a=D.AY-y;return a<=2?'0–2 years':a<=5?'3–5 years':'6+ years';}
+SEC.space={key:'space',filters:{},sources:{rooms:D.SPACE},quick:['type','staff'],dims:{
+  block:{label:'Block',get:function(r){return r.block;},order:['Block A','Block B','Block C','Block D']},
+  type:{label:'Space type',get:function(r){return r.type;},order:SP_TYPES,colors:{Office:1,Laboratory:5,Storage:2,Classroom:4,'Meeting room':7,'Common area':8}},
+  dept:{label:'Department / unit',get:function(r){return r.dept;},order:SHARED_ORDER},
+  staff:{label:'Staff category',get:function(r){return r.staff;},order:['Academic','Administrative','Admin-Academic','Shared'],colors:{Academic:1,Administrative:2,'Admin-Academic':4,Shared:8}}
+}};
+SEC.it={key:'it',filters:{},sources:{assets:D.IT},quick:['age'],dims:{
+  type:{label:'Equipment type',get:function(r){return r.type;},order:D.IT_TYPES},
+  dept:{label:'Department / unit',get:function(r){return r.dept;},order:SHARED_ORDER},
+  block:{label:'Block',get:function(r){return r.block;},order:['Block A','Block B','Block C','Block D']},
+  year:{label:'Year acquired',get:function(r){return String(r.year);},order:D.ITY.map(String)},
+  age:{label:'Age',get:function(r){return ageBucket(r.year);},order:['0–2 years','3–5 years','6+ years'],colors:{'0–2 years':4,'3–5 years':2,'6+ years':3}}
+}};
+
+function passes(sec,src,r,f,skip){
+  for(var k in f){
+    if(k===skip)continue;
+    var s=f[k];if(!s||!s.size)continue;
+    var d=sec.dims[k];
+    if(d.srcs&&d.srcs.indexOf(src)<0)continue;
+    if(!s.has(String(d.get(r))))return false;
+  }
+  return true;
+}
+function recs(sec,src,skip,f){var ff=f||sec.filters;return sec.sources[src].filter(function(r){return passes(sec,src,r,ff,skip);});}
+function toggleFilter(sec,k,v){
+  var s=sec.filters[k]||(sec.filters[k]=new Set());
+  if(s.has(v))s.delete(v);else s.add(v);
+  if(!s.size)delete sec.filters[k];
+  renderMain();
+}
+function hasF(sec,k,v){return !!(sec.filters[k]&&sec.filters[k].has(v));}
+
+/* ---------- teaching FTE ---------- */
+var FTE={};DEPTS.forEach(function(d){FTE[d]=0;});FAC.forEach(function(f){FTE[f.dept]+=f.teach;});
+function fteFor(set){var t=0;DEPTS.forEach(function(d){if(!set||!set.size||set.has(d))t+=FTE[d];});return t;}
+
+/* ---------- aggregation ---------- */
+function aggregate(sec,c){
+  var dim=sec.dims[c.dim],sdim=c.stack?sec.dims[c.stack]:null;
+  var f=c.ignoreFilters?{}:sec.filters;
+  var rs=recs(sec,c.src,c.dim,f).filter(function(r){return !c.where||c.where(r);});
+  var tot={},wv=c.val||function(){return 1;};
+  rs.forEach(function(r){var l=String(dim.get(r));tot[l]=(tot[l]||0)+wv(r);});
+  var labels,map=function(l){return l;};
+  if(dim.order)labels=dim.order.slice();
+  else{
+    var arr=Object.keys(tot).sort(function(a,b){return tot[b]-tot[a];});
+    var named=arr.filter(function(l){return !isOther(l);}),oth=arr.filter(isOther);
+    var n=c.topN||dim.topN;
+    if(n&&named.length>n){var keep=named.slice(0,n);labels=keep.concat(['Other']);map=function(l){return keep.indexOf(l)>=0?l:'Other';};}
+    else labels=named.concat(oth);
+  }
+  var sl=sdim?(sdim.order?sdim.order.slice():null):['_'];
+  if(sdim&&!sl){var st={};rs.forEach(function(r){var s=String(sdim.get(r));st[s]=(st[s]||0)+wv(r);});sl=Object.keys(st).sort(function(a,b){return st[b]-st[a];});}
+  var grid={};
+  rs.forEach(function(r){var l=map(String(dim.get(r))),s=sdim?String(sdim.get(r)):'_';(grid[l]||(grid[l]={}))[s]=((grid[l]||{})[s]||0)+wv(r);});
+  var series=sl.map(function(s){return{suffix:c.suffix||'',name:sdim?s:(c.unit||'Count'),data:labels.map(function(l){return (grid[l]&&grid[l][s])||0;})};});
+  var totals=labels.map(function(l,i){return series.reduce(function(a,s){return a+s.data[i];},0);});
+  if(c.hideZero){var keepIx=[];totals.forEach(function(t,i){if(t>0)keepIx.push(i);});
+    labels=keepIx.map(function(i){return labels[i];});totals=keepIx.map(function(i){return totals[i];});
+    series=series.map(function(s){return{name:s.name,data:keepIx.map(function(i){return s.data[i];})};});}
+  var grand=totals.reduce(function(a,b){return a+b;},0);
+  return{labels:labels,series:series,totals:totals,grand:grand,stacked:!!sdim};
+}
+function computeCard(sec,c,st){return c.build?c.build(sec,st):aggregate(sec,c);}
+
+function tableModel(sec,c,data){
+  if(data.table)return data.table;
+  var dl=sec.dims[c.dim].label,unit=c.unit||'Count';
+  var multi=data.stacked&&data.series.length>1;
+  var head=[dl].concat(multi?data.series.map(function(s){return s.name;}):[]).concat([unit,'% of total']);
+  var rows=data.labels.map(function(l,i){
+    var t=data.totals[i],cells=[l];
+    if(multi)data.series.forEach(function(s){cells.push(fmt(s.data[i])+(t?' ('+Math.round(s.data[i]/t*100)+'%)':''));});
+    cells.push(fmt(t),pct(t,data.grand));
+    return{label:l,cells:cells};
+  });
+  var foot=['Total'];
+  if(multi)data.series.forEach(function(s){var sm=s.data.reduce(function(a,b){return a+b;},0);foot.push(fmt(sm)+' ('+Math.round(data.grand?sm/data.grand*100:0)+'%)');});
+  foot.push(fmt(data.grand),data.grand?'100%':'—');
+  return{head:head,num:head.map(function(_,i){return i>0;}),rows:rows,foot:foot};
+}
+
+/* ---------- chart plugins ---------- */
+var centerPlugin={id:'centerText',afterDraw:function(chart,a,o){
+  if(!o||o.total==null)return;
+  var m=chart.getDatasetMeta(0).data[0];if(!m)return;
+  var ctx=chart.ctx;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=o.color;ctx.font="600 26px 'Source Serif 4',Georgia,serif";ctx.fillText(fmt(o.total),m.x,m.y-6);
+  ctx.fillStyle=o.sub;ctx.font="12px 'IBM Plex Sans',sans-serif";ctx.fillText(o.label||'',m.x,m.y+16);ctx.restore();
+}};
+var refPlugin={id:'refLine',afterDatasetsDraw:function(chart,a,o){
+  if(!o||o.value==null)return;
+  var ar=chart.chartArea,horiz=chart.options.indexAxis==='y',ax=horiz?chart.scales.x:chart.scales.y;
+  var p=ax.getPixelForValue(o.value),ctx=chart.ctx;
+  ctx.save();ctx.strokeStyle=o.color;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();
+  if(horiz){ctx.moveTo(p,ar.top);ctx.lineTo(p,ar.bottom);}else{ctx.moveTo(ar.left,p);ctx.lineTo(ar.right,p);}
+  ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=o.color;ctx.font="600 11px 'IBM Plex Sans',sans-serif";
+  if(horiz){ctx.textAlign='left';ctx.fillText(o.label,p+5,ar.top+11);}else{ctx.textAlign='right';ctx.fillText(o.label,ar.right-2,p-6);}
+  ctx.restore();
+}};
+
+function chartHeight(kind,n){
+  if(kind==='doughnut')return 290;
+  if(kind==='hbar')return Math.max(250,Math.min(560,n*34+70));
+  return 310;
+}
+
+function buildChart(sec,c,data,st,canvas){
+  var t=T();
+  Chart.defaults.font.family="'IBM Plex Sans',system-ui,sans-serif";Chart.defaults.font.size=12;Chart.defaults.color=t.ink2;
+  var dim=c.dim?sec.dims[c.dim]:null,sdim=c.stack?sec.dims[c.stack]:null;
+  var sel=(dim&&!c.ignoreFilters&&sec.filters[c.dim]&&sec.filters[c.dim].size)?sec.filters[c.dim]:null;
+  var clickable=!!dim&&!c.ignoreFilters;
+  var pctMode=!!c.percentable&&st.mode==='percent';
+  var kind=st.kind,labels=data.labels;
+  function fd(l){return !!sel&&!sel.has(l);}
+  var common={responsive:true,maintainAspectRatio:false,animation:{duration:320},
+    onClick:function(e,els){if(!clickable||!els.length)return;var l=labels[els[0].index];if(l==='Other'&&!dim.order)return;toggleFilter(sec,c.dim,l);},
+    onHover:function(e,els){if(e.native&&e.native.target)e.native.target.style.cursor=(clickable&&els.length)?'pointer':'default';}};
+  var cfg;
+  if(kind==='doughnut'){
+    cfg={type:'doughnut',plugins:[centerPlugin],data:{labels:labels,datasets:[{data:data.totals,
+      backgroundColor:labels.map(function(l,i){return fade(colorFor(dim,l,i,t),fd(l));}),borderColor:t.surface,borderWidth:2,hoverOffset:6}]},
+      options:Object.assign({},common,{cutout:'64%',plugins:{
+        legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,padding:14,color:t.ink2,
+          generateLabels:function(ch){var base=Chart.overrides.doughnut.plugins.legend.labels.generateLabels(ch);
+            base.forEach(function(it){it.text=it.text+'  '+fmt(data.totals[it.index]);it.fontColor=t.ink2;});return base;}},
+          onClick:function(e,it){if(clickable){var l=labels[it.index];if(!(l==='Other'&&!dim.order))toggleFilter(sec,c.dim,l);}}},
+        tooltip:{callbacks:{label:function(x){return ' '+x.label+': '+fmt(x.parsed)+' ('+pct(x.parsed,data.grand)+')';}}},
+        centerText:{total:data.grand,label:c.unit||'',color:t.ink,sub:t.ink3}}})};
+  }else{
+    var horiz=kind==='hbar',line=kind==='line',comp=data.stacked&&data.series.length>1,stacked=comp&&!line;
+    var vk=horiz?'x':'y',ik=horiz?'y':'x';
+    var datasets=data.series.map(function(s,si){
+      var vals=s.data.map(function(v,i){return pctMode?(comp?(data.totals[i]?v/data.totals[i]*100:0):(data.grand?v/data.grand*100:0)):v;});
+      var bg;
+      if(s.color)bg=labels.map(function(l){return fade(cv(t,s.color),fd(l));});
+      else if(data.colorOf)bg=labels.map(function(l,i){return fade(cv(t,data.colorOf(l,s.data[i],i)),fd(l));});
+      else if(sdim)bg=labels.map(function(l){return fade(colorFor(sdim,s.name,si,t),fd(l));});
+      else if(c.multicolor)bg=labels.map(function(l,i){return fade(colorFor(dim,l,i,t),fd(l));});
+      else bg=labels.map(function(l){return fade(t.c[0],fd(l));});
+      var base={label:s.name,data:vals,counts:s.data,suffix:s.suffix||''};
+      if(line){var col=s.color?cv(t,s.color):(sdim?colorFor(sdim,s.name,si,t):t.c[si%8]);return Object.assign(base,{borderColor:col,backgroundColor:col,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2.5});}
+      return Object.assign(base,{backgroundColor:bg,borderRadius:stacked?2:4,borderSkipped:false,maxBarThickness:36});
+    });
+    var maxVal=Math.max.apply(null,[0].concat(datasets.map(function(d){return Math.max.apply(null,d.data.length?d.data:[0]);})));
+    var vscale={beginAtZero:true,grid:{color:t.line},border:{display:false},stacked:stacked,
+      ticks:{precision:0,callback:function(v){return pctMode?v+'%':(data.axisSuffix?v+data.axisSuffix:v);}}};
+    if(pctMode&&comp)vscale.max=100;
+    if(data.axisMax)vscale.max=data.axisMax;
+    if(data.refLine)vscale.suggestedMax=Math.max(maxVal,data.refLine.value)*1.15;
+    var iscale={stacked:stacked,grid:{display:false},border:{color:t.line},ticks:{autoSkip:false,maxRotation:0,color:t.ink2}};
+    var sc={};sc[vk]=vscale;sc[ik]=iscale;
+    cfg={type:line?'line':'bar',plugins:[refPlugin],data:{labels:horiz?labels:labels.map(function(l){return wrap(l,13);}),datasets:datasets},
+      options:Object.assign({},common,{indexAxis:horiz?'y':'x',scales:sc,
+        interaction:line?{mode:'index',intersect:false}:{mode:'nearest',intersect:true},
+        plugins:{legend:{display:data.series.length>1,position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,padding:14,color:t.ink2}},
+          refLine:data.refLine?{value:data.refLine.value,label:data.refLine.label,color:t.c[2]}:false,
+          tooltip:{callbacks:{
+            title:function(items){return labels[items[0].dataIndex];},
+            label:function(x){var ds=x.dataset,n=ds.counts[x.dataIndex];
+              var shown=(typeof n==='number'&&!Number.isInteger(n))?n.toFixed(1):(typeof n==='number'?fmt(n):n);
+              var v=horiz?x.parsed.x:x.parsed.y;
+              if(pctMode)return ' '+ds.label+': '+v.toFixed(1)+'% ('+fmt(n)+')';
+              return ' '+ds.label+': '+shown+ds.suffix+(stacked&&data.totals[x.dataIndex]?' ('+pct(n,data.totals[x.dataIndex],0)+')':'');}}}}})};
+  }
+  return new Chart(canvas,cfg);
+}
+
+/* ---------- tables ---------- */
+function tableEl(sec,c,m){
+  var f=(c.dim&&!c.ignoreFilters)?sec.filters[c.dim]:null;
+  var clickable=!!c.dim&&!c.ignoreFilters;
+  var thead=h('thead',null,h('tr',null,m.head.map(function(t,i){return h('th',{class:m.num[i]?'num':''},t);})));
+  var tbody=h('tbody',null,m.rows.map(function(r){
+    var can=clickable&&!isOther(r.label);
+    var tr=h('tr',{class:(can?'click ':'')+((f&&f.has(r.label))?'sel':''),
+      onclick:can?function(){toggleFilter(sec,c.dim,r.label);}:null},
+      r.cells.map(function(v,i){return h('td',{class:m.num[i]?'num':''},v);}));
+    return tr;
+  }));
+  var tbl=h('table',{class:'tbl'},thead,tbody,m.foot?h('tfoot',null,h('tr',null,m.foot.map(function(v,i){return h('td',{class:m.num[i]?'num':''},v);}))):null);
+  return h('div',{class:'tblwrap'},tbl);
+}
+
+/* ---------- card ---------- */
+var KIND_LABEL={doughnut:'Donut',bar:'Columns',hbar:'Bars',line:'Line'};
+function renderCard(sec,c,host){
+  if(host._chart){host._chart.destroy();host._chart=null;}
+  host.innerHTML='';
+  var st=ui(c.id,Object.assign({view:'chart',kind:c.kinds[0],mode:'count'},c.state||{}));
+  if(!HAS_CHART)st.view='table';
+  var data=computeCard(sec,c,st);
+  var model=tableModel(sec,c,data);
+  var again=function(){renderCard(sec,c,host);};
+  var ctrls=h('div',{class:'ctrls'});
+  if(c.extra)c.extra(sec,st,again).forEach(function(e){ctrls.append(e);});
+  if(st.view==='chart'&&c.kinds.length>1)ctrls.append(seg(c.kinds.map(function(k){return[k,KIND_LABEL[k]];}),st.kind,function(k){st.kind=k;again();},'Chart type'));
+  if(st.view==='chart'&&c.percentable&&st.kind!=='doughnut')ctrls.append(seg([['count','Count'],['percent','Share %']],st.mode,function(k){st.mode=k;again();},'Values'));
+  if(st.view==='table')ctrls.append(h('button',{class:'mini',type:'button',onclick:function(){
+    var rows=[model.head].concat(model.rows.map(function(r){return r.cells;}));if(model.foot)rows.push(model.foot);
+    copyText(rows.map(function(r){return r.map(function(v){return v&&v.nodeType?v.textContent:v;}).join('\t');}).join('\n'));}},'Copy table'));
+  if(HAS_CHART)ctrls.append(seg([['chart','Chart'],['table','Table']],st.view,function(v){st.view=v;again();},'Display'));
+  if(c.link)ctrls.append(h('button',{class:'mini',type:'button',onclick:function(){go(c.link);}},'Open '+c.linkLabel));
+  host.append(h('div',{class:'card-h'},h('div',null,h('h2',null,c.title),c.sub?h('p',null,c.sub):null),ctrls));
+  if(!data.grand&&!data.table){host.append(h('div',{class:'empty'},'No data for the current selection. Clear a filter to see results.'));return;}
+  if(st.view==='chart'){
+    var canvas=h('canvas',{role:'img','aria-label':c.title+' chart'});
+    host.append(h('div',{class:'chartwrap',style:'height:'+chartHeight(st.kind,data.labels.length)+'px'},canvas));
+    host._chart=buildChart(sec,c,data,st,canvas);
+  }else host.append(tableEl(sec,c,model));
+}
+
+/* ---------- data tables (search, sort, pages) ---------- */
+function dataTable(cfg){
+  var st=ui(cfg.id,{q:'',page:0,sort:cfg.sort||null});
+  var body=h('div'),cnt=h('span',{class:'cnt'});
+  var input=h('input',{type:'search',placeholder:cfg.placeholder||'Search…','aria-label':'Search',value:st.q,oninput:function(){st.q=input.value;st.page=0;draw();}});
+  function rowsNow(){
+    var rows=cfg.rows.slice();
+    if(st.q){var q=st.q.toLowerCase();rows=rows.filter(function(r){return cfg.cols.some(function(c){return String(r[c.key]).toLowerCase().indexOf(q)>=0;});});}
+    if(st.sort){var k=st.sort.key,dir=st.sort.dir==='asc'?1:-1;
+      rows.sort(function(a,b){var x=a[k],y=b[k];return dir*((typeof x==='number'&&typeof y==='number')?x-y:String(x).localeCompare(String(y)));});}
+    return rows;
+  }
+  var copy=h('button',{class:'mini',type:'button',onclick:function(){var rows=rowsNow();
+    copyText([cfg.cols.map(function(c){return c.label;}).join('\t')].concat(rows.map(function(r){return cfg.cols.map(function(c){return r[c.key];}).join('\t');})).join('\n'));}},'Copy table');
+  function draw(){
+    var rows=rowsNow(),ps=cfg.pageSize||12,pages=Math.max(1,Math.ceil(rows.length/ps));
+    if(st.page>=pages)st.page=pages-1;
+    cnt.textContent=fmt(rows.length)+' of '+fmt(cfg.rows.length)+' records';
+    var thead=h('thead',null,h('tr',null,cfg.cols.map(function(c){
+      var arrow=(st.sort&&st.sort.key===c.key)?(st.sort.dir==='asc'?' ▲':' ▼'):'';
+      return h('th',{class:'sortable'+(c.num?' num':''),title:'Sort',onclick:function(){
+        st.sort=(st.sort&&st.sort.key===c.key)?{key:c.key,dir:st.sort.dir==='asc'?'desc':'asc'}:{key:c.key,dir:c.num?'desc':'asc'};draw();}},c.label+arrow);})));
+    var tb=h('tbody',null,rows.slice(st.page*ps,st.page*ps+ps).map(function(r){
+      return h('tr',{class:cfg.onRow?'click':'',onclick:cfg.onRow?function(){cfg.onRow(r);}:null},
+        cfg.cols.map(function(c){return h('td',{class:c.num?'num':''},c.fmt?c.fmt(r[c.key],r):r[c.key]);}));}));
+    body.innerHTML='';
+    body.append(h('div',{class:'tblwrap',style:'max-height:none'},h('table',{class:'tbl'},thead,tb)));
+    body.append(h('div',{class:'pager'},h('span',null,'Page '+(st.page+1)+' of '+pages),
+      h('button',{class:'mini',type:'button',disabled:st.page===0,onclick:function(){st.page--;draw();}},'Previous'),
+      h('button',{class:'mini',type:'button',disabled:st.page>=pages-1,onclick:function(){st.page++;draw();}},'Next')));
+  }
+  draw();
+  return h('div',null,h('div',{class:'dt-bar'},input,h('div',{class:'ctrls'},cnt,copy)),body);
+}
+function tableCard(title,sub,node,cls){return h('section',{class:'card '+(cls||'w12')},h('div',{class:'card-h'},h('div',null,h('h2',null,title),sub?h('p',null,sub):null)),node);}
+
+/* ---------- modal ---------- */
+function openModal(content){
+  var ov=h('div',{class:'overlay',role:'dialog','aria-modal':'true'});
+  function close(){ov.remove();document.removeEventListener('keydown',esc);}
+  function esc(e){if(e.key==='Escape')close();}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  document.addEventListener('keydown',esc);
+  ov.append(h('div',{class:'modal'},content,h('div',{style:'text-align:right;margin-top:14px'},h('button',{class:'btn',type:'button',onclick:close},'Close'))));
+  document.body.append(ov);
+}
+function qTag(q){return h('span',{class:'tag '+(q==='Q1'?'good':q==='Q2'?'good':q==='Q3'?'mid':'')},q);}
+function facultyModal(f){
+  var ps=PUBS.filter(function(p){return p.fid===f.id;}).sort(function(a,b){return b.year-a.year;});
+  var q1=ps.filter(function(p){return p.q==='Q1';}).length,q2=ps.filter(function(p){return p.q==='Q2';}).length;
+  var stat=function(v,l){return h('div',{class:'stat'},h('b',null,v),h('span',null,l));};
+  openModal(h('div',null,h('h3',null,f.name),h('div',{class:'meta'},f.rank+', '+f.dept+(f.type==='Admin-Academic'?' (admin-academic: '+f.org+')':'')),
+    h('div',{class:'row'},stat(ps.length,'Publications 2022–2026'),stat(q1,'Q1'),stat(q2,'Q2'),stat(pct(q1+q2,ps.length,0),'Q1 and Q2 share')),
+    ps.length?h('div',{class:'tblwrap'},h('table',{class:'tbl'},h('thead',null,h('tr',null,h('th',null,'Year'),h('th',null,'Title'),h('th',null,'Quartile'))),
+      h('tbody',null,ps.map(function(p){return h('tr',null,h('td',null,p.year),h('td',{style:'white-space:normal'},p.title),h('td',null,qTag(p.q)));})))):h('div',{class:'empty'},'No publications recorded.')));
+}
+
+function timetableModal(id){
+  var s=STAFF.filter(function(x){return x.id===id;})[0];
+  var secs=SCHED.filter(function(x){return x.fid===id;});
+  var stat=function(v,l){return h('div',{class:'stat'},h('b',null,v),h('span',null,l));};
+  var cols=['Mon','Tue','Wed','Thu','Fri'].map(function(d){
+    var blocks=[];
+    secs.forEach(function(x){x.slots.forEach(function(p){if(p.d===d)blocks.push({p:p,x:x});});});
+    blocks.sort(function(a,b){return a.p.s.localeCompare(b.p.s);});
+    return h('div',null,h('h4',null,d),blocks.length?blocks.map(function(b){
+      return h('div',{class:'blk'},h('b',null,b.p.s+'–'+b.p.e),b.x.code+' '+b.x.title,h('div',{class:'rm'},'Room '+b.x.room));
+    }):h('div',{class:'tip'},'No classes'));
+  });
+  var students=secs.reduce(function(a,x){return a+x.students;},0);
+  openModal(h('div',null,h('h3',null,s.name),
+    h('div',{class:'meta'},s.rank+', '+s.dept+(s.type==='Admin-Academic'?' ('+s.position+')':'')+', FTE '+s.fte+'. Timetable: Fall 2026'),
+    h('div',{class:'row'},stat(s.hours+' h','Contact hours per week'),stat((s.norm*s.fte)+' h','Norm for rank and FTE'),stat(s.load+'%','Workload'),stat(secs.length,'Sections'),stat(students,'Students taught')),
+    h('div',{class:'tt'},cols),
+    h('div',{class:'tblwrap'},h('table',{class:'tbl'},
+      h('thead',null,h('tr',null,['Code','Course','Level','Meetings','Hours','Students'].map(function(t,i){return h('th',{class:i>3?'num':''},t);}))),
+      h('tbody',null,secs.map(function(x){return h('tr',null,h('td',null,x.code),h('td',null,x.title),h('td',null,x.level),
+        h('td',null,x.slots.map(function(p){return p.d+' '+p.s;}).join(', ')),h('td',{class:'num'},x.hours),h('td',{class:'num'},x.students));}))))));
+}
+
+/* ---------- custom card builders ---------- */
+function sfBuild(sec){
+  var rs=recs(sec,'students','dept').filter(function(r){return r.status==='Active';});
+  var rows=DEPTS.map(function(d){var s=rs.filter(function(r){return r.dept===d;}).length,f=FTE[d];return{d:d,s:s,f:f,ratio:f?s/f:0};});
+  var ts=rows.reduce(function(a,r){return a+r.s;},0),tf=rows.reduce(function(a,r){return a+r.f;},0);
+  return{labels:DEPTS.slice(),totals:rows.map(function(r){return r.s;}),grand:ts,stacked:false,
+    series:[{name:'Students per teaching FTE',data:rows.map(function(r){return +r.ratio.toFixed(1);}),suffix:' : 1'}],
+    refLine:{value:TARGET,label:'Target '+TARGET+' : 1'},axisSuffix:'',
+    colorOf:function(l,v){return v>TARGET?'c3':'c1';},
+    table:{head:['Department','Active students','Teaching FTE','Ratio','Against target'],num:[false,true,true,true,false],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.s),r.f.toFixed(1),r.ratio.toFixed(1)+' : 1',h('span',{class:'tag '+(r.ratio>TARGET?'bad':'good')},r.ratio>TARGET?'Above target':'Within target')]};}),
+      foot:['All departments',fmt(ts),tf.toFixed(1),(tf?ts/tf:0).toFixed(1)+' : 1','']}};
+}
+function vacRateBuild(sec){
+  var hc=recs(sec,'staff','dept'),vc=recs(sec,'vac','dept');
+  var rows=ALLDEPTS.map(function(d){var a=hc.filter(function(r){return r.dept===d;}).length,v=vc.filter(function(r){return r.dept===d;}).length;return{d:d,a:a,v:v,rate:(a+v)?v/(a+v)*100:0};});
+  var ta=hc.length,tv=vc.length,overall=(ta+tv)?tv/(ta+tv)*100:0;
+  return{labels:ALLDEPTS.slice(),totals:rows.map(function(r){return r.a+r.v;}),grand:ta+tv,stacked:false,
+    series:[{name:'Vacancy rate',data:rows.map(function(r){return +r.rate.toFixed(1);}),suffix:'%'}],axisSuffix:'%',
+    refLine:{value:+overall.toFixed(1),label:'Overall '+overall.toFixed(1)+'%'},
+    colorOf:function(l,v){return v>overall*1.25&&v>8?'c3':'c1';},
+    table:{head:['Department','Filled positions','Open vacancies','Vacancy rate'],num:[false,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.a),fmt(r.v),r.rate.toFixed(1)+'%']};}),
+      foot:['All',fmt(ta),fmt(tv),overall.toFixed(1)+'%']}};
+}
+function loadBuild(sec){
+  var hc=recs(sec,'staff','dept');
+  var rows=ALLDEPTS.map(function(d){var r=hc.filter(function(x){return x.dept===d;});
+    var avg=r.length?r.reduce(function(a,x){return a+x.load;},0)/r.length:0;
+    return{d:d,n:r.length,avg:avg,over:r.filter(function(x){return x.load>110;}).length,under:r.filter(function(x){return x.load<80;}).length};});
+  var tn=hc.length,tavg=tn?hc.reduce(function(a,x){return a+x.load;},0)/tn:0;
+  return{labels:ALLDEPTS.slice(),totals:rows.map(function(r){return r.n;}),grand:tn,stacked:false,
+    series:[{name:'Average workload',data:rows.map(function(r){return +r.avg.toFixed(1);}),suffix:'% of norm'}],axisSuffix:'%',
+    refLine:{value:100,label:'Norm 100%'},
+    colorOf:function(l,v,i){return rows[i].n===0?'c8':v>110?'c3':v<85?'c7':'c1';},
+    table:{head:['Department','Headcount','Average workload','Above 110%','Below 80%'],num:[false,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.n),r.n?r.avg.toFixed(0)+'%':'—',fmt(r.over),fmt(r.under)]};}),
+      foot:['All',fmt(tn),tn?tavg.toFixed(0)+'%':'—',fmt(rows.reduce(function(a,r){return a+r.over;},0)),fmt(rows.reduce(function(a,r){return a+r.under;},0))]}};
+}
+function pubDeptBuild(sec){
+  var fac=recs(sec,'fac','dept'),pubs=recs(sec,'pubs','dept');
+  var rows=DEPTS.map(function(d){var p=pubs.filter(function(x){return x.dept===d;}),nf=fac.filter(function(x){return x.dept===d;}).length;
+    var q1=p.filter(function(x){return x.q==='Q1';}).length,q2=p.filter(function(x){return x.q==='Q2';}).length;
+    return{d:d,nf:nf,n:p.length,q1:q1,q2:q2,share:p.length?(q1+q2)/p.length*100:0};});
+  var tn=pubs.length,tq1=pubs.filter(function(x){return x.q==='Q1';}).length,tq2=pubs.filter(function(x){return x.q==='Q2';}).length,overall=tn?(tq1+tq2)/tn*100:0;
+  return{labels:DEPTS.slice(),totals:rows.map(function(r){return r.n;}),grand:tn,stacked:false,
+    series:[{name:'Q1 and Q2 share',data:rows.map(function(r){return +r.share.toFixed(1);}),suffix:'%'}],axisSuffix:'%',
+    refLine:{value:+overall.toFixed(1),label:'School '+overall.toFixed(1)+'%'},
+    colorOf:function(l,v){return v>=overall?'c1':'c7';},
+    table:{head:['Department','Faculty','Publications','Q1','Q2','Q1 + Q2','Q1 + Q2 share','Per faculty'],num:[false,true,true,true,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.nf),fmt(r.n),fmt(r.q1),fmt(r.q2),fmt(r.q1+r.q2),r.n?r.share.toFixed(1)+'%':'—',r.nf?(r.n/r.nf).toFixed(1):'—']};}),
+      foot:['All',fmt(fac.length),fmt(tn),fmt(tq1),fmt(tq2),fmt(tq1+tq2),tn?overall.toFixed(1)+'%':'—',fac.length?(tn/fac.length).toFixed(1):'—']}};
+}
+
+function rate1(a,b){return b?+(a/b*100).toFixed(1):0;}
+function gradBuild(sec){
+  var rs=recs(sec,'hist','level'),L=['UG','Master','PhD'];
+  var rows=L.map(function(l){var r=rs.filter(function(x){return x.level===l;});
+    var c=function(o){return r.filter(function(x){return x.outcome===o;}).length;};
+    return{l:l,n:r.length,ot:c('Graduated on time'),lt:c('Graduated late'),st:c('Still enrolled'),wd:c('Withdrawn')};});
+  var S={n:0,ot:0,lt:0,st:0,wd:0};
+  rows.forEach(function(r){S.n+=r.n;S.ot+=r.ot;S.lt+=r.lt;S.st+=r.st;S.wd+=r.wd;});
+  return{labels:L.slice(),totals:rows.map(function(r){return r.n;}),grand:S.n,stacked:false,axisSuffix:'%',axisMax:100,
+    series:[{name:'On-time graduation',data:rows.map(function(r){return rate1(r.ot,r.n);}),suffix:'%',color:'c1'},
+            {name:'Graduated, including late',data:rows.map(function(r){return rate1(r.ot+r.lt,r.n);}),suffix:'%',color:'c4'}],
+    table:{head:['Level','Entrants','On time','Late','Still enrolled','Withdrawn','On-time rate','Graduation rate'],num:[false,true,true,true,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.l,cells:[r.l,fmt(r.n),fmt(r.ot),fmt(r.lt),fmt(r.st),fmt(r.wd),pct(r.ot,r.n),pct(r.ot+r.lt,r.n)]};}),
+      foot:['All levels',fmt(S.n),fmt(S.ot),fmt(S.lt),fmt(S.st),fmt(S.wd),pct(S.ot,S.n),pct(S.ot+S.lt,S.n)]}};
+}
+function retBuild(sec){
+  var rs=recs(sec,'hist','hcohort'),L=sec.dims.hcohort.order;
+  var rows=L.map(function(co){var r=rs.filter(function(x){return x.hcohort===co;});
+    return{co:co,n:r.length,k:r.filter(function(x){return x.leftYear!==1;}).length};});
+  var tn=rows.reduce(function(a,r){return a+r.n;},0),tk=rows.reduce(function(a,r){return a+r.k;},0);
+  return{labels:L.slice(),totals:rows.map(function(r){return r.n;}),grand:tn,stacked:false,axisSuffix:'%',axisMax:100,
+    series:[{name:'First-year retention',data:rows.map(function(r){return rate1(r.k,r.n);}),suffix:'%',color:'c4'}],
+    table:{head:['Entry cohort','Entrants','Continued to year 2','Left in year 1','Retention rate'],num:[false,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.co,cells:[r.co,fmt(r.n),fmt(r.k),fmt(r.n-r.k),pct(r.k,r.n)]};}),
+      foot:['All cohorts',fmt(tn),fmt(tk),fmt(tn-tk),pct(tk,tn)]}};
+}
+function deptOutcomeBuild(sec){
+  var rs=recs(sec,'hist','dept');
+  function stats(r){var g=r.filter(function(x){return x.outcome.indexOf('Graduated')===0;});
+    return{n:r.length,g:g.length,e:g.filter(function(x){return x.emp==='Employed';}).length,s:g.filter(function(x){return x.emp==='Seeking';}).length,
+      k:r.filter(function(x){return x.leftYear!==1;}).length};}
+  var rows=DEPTS.map(function(d){var o=stats(rs.filter(function(x){return x.dept===d;}));o.d=d;return o;});
+  var A=stats(rs);
+  return{labels:DEPTS.slice(),totals:rows.map(function(r){return r.n;}),grand:A.n,stacked:false,axisSuffix:'%',axisMax:100,
+    series:[{name:'Graduation rate',data:rows.map(function(r){return rate1(r.g,r.n);}),suffix:'%',color:'c1'},
+            {name:'Employment rate',data:rows.map(function(r){return rate1(r.e,r.e+r.s);}),suffix:'%',color:'c2'},
+            {name:'First-year retention',data:rows.map(function(r){return rate1(r.k,r.n);}),suffix:'%',color:'c4'}],
+    table:{head:['Department','Entrants','Graduates','Graduation rate','Employed','Seeking work','Employment rate','Retention rate'],num:[false,true,true,true,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.n),fmt(r.g),pct(r.g,r.n),fmt(r.e),fmt(r.s),pct(r.e,r.e+r.s),pct(r.k,r.n)]};}),
+      foot:['All departments',fmt(A.n),fmt(A.g),pct(A.g,A.n),fmt(A.e),fmt(A.s),pct(A.e,A.e+A.s),pct(A.k,A.n)]}};
+}
+
+var MAJ_LIST=(function(){var o={};STU.forEach(function(r){o[r.major]=1;});return Object.keys(o).sort();})();
+function yearsBuild(sec,st){
+  var rs=recs(sec,'students','course');
+  var by=st.by==='major'?'major':'dept';
+  if(st.by!=='all'&&st.pick)rs=rs.filter(function(r){return r[by]===st.pick;});
+  var L=D.COURSES.slice(),series;
+  var count=function(list){return L.map(function(l){return list.filter(function(r){return r.course===l;}).length;});};
+  if(st.by==='all'||st.pick)series=[{name:st.by==='all'?'Students':st.pick,data:count(rs)}];
+  else{
+    var names=by==='major'?MAJ_LIST:DEPTS.slice();
+    series=names.map(function(n,i){return{name:n,data:count(rs.filter(function(r){return r[by]===n;})),color:'c'+(i%8+1)};})
+      .filter(function(s){return s.data.some(function(v){return v>0;});});
+  }
+  var totals=L.map(function(l,i){return series.reduce(function(a,s){return a+s.data[i];},0);});
+  var grand=totals.reduce(function(a,b){return a+b;},0);
+  return{labels:L,series:series,totals:totals,grand:grand,stacked:series.length>1};
+}
+function yearsExtra(sec,st,again){
+  var out=[seg([['all','Total'],['dept','Department'],['major','Major']],st.by,function(v){st.by=v;st.pick='';again();},'Group by')];
+  if(st.by!=='all'){
+    var opts=st.by==='major'?MAJ_LIST:DEPTS;
+    var sel=h('select',{class:'mini','aria-label':st.by==='major'?'Choose a major':'Choose a department',onchange:function(){st.pick=sel.value;again();}},
+      h('option',{value:''},st.by==='major'?'All majors':'All departments'),
+      opts.map(function(o){return h('option',{value:o,selected:o===st.pick},o);}));
+    out.push(sel);
+  }
+  return out;
+}
+
+function densityBuild(sec){
+  var rs=recs(sec,'rooms','dept');
+  var L=ALLDEPTS.slice();
+  var sum=function(l){return l.reduce(function(a,r){return a+r.area;},0);};
+  var rows=L.map(function(d){
+    var r=rs.filter(function(x){return x.dept===d;});
+    var off=sum(r.filter(function(x){return x.type==='Office';})),lab=sum(r.filter(function(x){return x.type==='Laboratory';}));
+    var hc=STAFF.filter(function(s){return s.dept===d;}).length;
+    return{d:d,n:r.length,area:sum(r),off:off,lab:lab,hc:hc,per:hc?off/hc:0};});
+  var T={n:rs.length,area:sum(rs),off:0,lab:0,hc:STAFF.length};
+  rows.forEach(function(r){T.off+=r.off;T.lab+=r.lab;});
+  var overall=T.hc?T.off/T.hc:0;
+  return{labels:L,totals:rows.map(function(r){return r.area;}),grand:T.area,stacked:false,
+    series:[{name:'Office space per staff member',data:rows.map(function(r){return +r.per.toFixed(1);}),suffix:' m²',color:'c1'}],
+    refLine:{value:+overall.toFixed(1),label:'School '+overall.toFixed(1)+' m²'},
+    table:{head:['Department / unit','Rooms','Total area, m²','Offices, m²','Laboratories, m²','Staff headcount','Office m² per person'],num:[false,true,true,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.n),fmt(r.area),fmt(r.off),fmt(r.lab),fmt(r.hc),r.hc?r.per.toFixed(1):'—']};}),
+      foot:['All, including shared space',fmt(T.n),fmt(T.area),fmt(T.off),fmt(T.lab),fmt(T.hc),T.hc?overall.toFixed(1):'—']}};
+}
+
+/* ---------- card definitions ---------- */
+var CARDS={};
+CARDS.students=[
+ {id:'s-status',sec:'students',src:'students',cls:'w6',title:'Enrolment status',sub:'Active students and students on leave of absence',dim:'status',kinds:['doughnut','bar'],unit:'Students',multicolor:true},
+ {id:'s-level',sec:'students',src:'students',cls:'w6',title:'Level of study',sub:'Undergraduate, Master and PhD, split by status',dim:'level',stack:'status',kinds:['bar','doughnut'],unit:'Students'},
+ {id:'s-major',sec:'students',src:'students',cls:'w6',title:'Students by major',sub:'Split by level. Use Share % to compare the mix.',dim:'major',stack:'level',kinds:['hbar','doughnut'],unit:'Students',percentable:true},
+ {id:'s-course',sec:'students',cls:'w6',title:'Students by years of study',sub:'Year of study within each level. Group by department or major, or pick one to drill down.',dim:'course',kinds:['hbar','bar'],unit:'Students',percentable:true,state:{by:'all',pick:''},build:yearsBuild,extra:yearsExtra},
+ {id:'s-funding',sec:'students',src:'students',cls:'w6',title:'Funding type',sub:'Self-paid, State Grant, Abai Grant, Alash Grant, Partial Alash Grant',dim:'funding',stack:'level',kinds:['doughnut','hbar'],unit:'Students',percentable:true},
+ {id:'s-cohort',sec:'students',src:'students',cls:'w6',title:'Cohorts',sub:'Students by admission year',dim:'cohort',stack:'status',kinds:['bar','line'],unit:'Students'},
+ {id:'s-country',sec:'students',src:'students',cls:'w6',title:'Country of origin',sub:'Where students are from',dim:'country',kinds:['hbar','doughnut'],unit:'Students'},
+ {id:'s-city',sec:'students',src:'students',cls:'w6',title:'City of origin',sub:'Top 12 cities, the rest are grouped as Other',dim:'city',kinds:['hbar','doughnut'],unit:'Students'},
+ {id:'s-dept',sec:'students',src:'students',cls:'w6',title:'Students by department',sub:'Department of the student’s major, split by level',dim:'dept',stack:'level',kinds:['hbar','doughnut'],unit:'Students',percentable:true},
+ {id:'s-sf',sec:'students',cls:'w6',title:'Student/faculty ratio',sub:'Active students per teaching FTE. Admin-academic staff count as 0.5 FTE.',dim:'dept',kinds:['bar','hbar'],unit:'Students',build:sfBuild},
+ {id:'s-grad',sec:'students',cls:'w6',title:'Graduation rate',sub:'Entrants of past cohorts (2019 to 2024) who graduated. Late means after the standard duration.',dim:'level',kinds:['bar','hbar'],unit:'Entrants',build:gradBuild},
+ {id:'s-ret',sec:'students',cls:'w6',title:'First-year retention rate',sub:'Entrants who continued into their second year, by entry cohort',dim:'hcohort',kinds:['line','bar'],unit:'Entrants',build:retBuild},
+ {id:'s-emp',sec:'students',src:'hist',cls:'w6',title:'Employment outcomes',sub:'Graduates six months after graduation. Employment rate = employed ÷ (employed + seeking work).',dim:'emp',kinds:['doughnut','hbar'],unit:'Graduates',multicolor:true,where:function(r){return !!r.emp;}},
+ {id:'s-sphere',sec:'students',src:'hist',cls:'w6',title:'Employment spheres',sub:'Where employed graduates work',dim:'sphere',kinds:['hbar','doughnut'],unit:'Employed graduates',where:function(r){return r.emp==='Employed';}},
+ {id:'s-outcomes',sec:'students',cls:'w12',title:'Outcomes by department',sub:'Graduation rate, employment rate and first-year retention for past cohorts',dim:'dept',kinds:['bar','hbar'],unit:'Entrants',build:deptOutcomeBuild}
+];
+CARDS.staff=[
+ {id:'t-type',sec:'staff',src:'staff',cls:'w4',title:'Staff by type',sub:'Administrative, academic and admin-academic',dim:'type',kinds:['doughnut','bar'],unit:'Staff',multicolor:true},
+ {id:'t-dept',sec:'staff',src:'staff',cls:'w8',title:'Headcount by department',sub:'Academic departments and administrative units, split by staff type',dim:'dept',stack:'type',kinds:['hbar'],unit:'Staff',percentable:true},
+ {id:'t-vac',sec:'staff',src:'vac',cls:'w6',title:'Vacancies by department',sub:'Open positions, split by staff type',dim:'dept',stack:'type',kinds:['hbar','doughnut'],unit:'Vacancies',hideZero:true},
+ {id:'t-rank',sec:'staff',src:'staff',cls:'w6',title:'Faculty by rank',sub:'Academic and admin-academic staff',dim:'rank',stack:'type',kinds:['bar','doughnut'],unit:'Faculty',where:function(r){return !!r.rank;}},
+ {id:'t-vstatus',sec:'staff',src:'vac',cls:'w6',title:'Recruitment pipeline',sub:'Where open vacancies stand',dim:'vstatus',stack:'type',kinds:['doughnut','bar'],unit:'Vacancies'},
+ {id:'t-load',sec:'staff',cls:'w6',title:'Workload by department',sub:'Average workload as a % of contractual norm (100% = full norm)',dim:'dept',kinds:['hbar','bar'],unit:'Staff',build:loadBuild}
+];
+CARDS.pubs=[
+ {id:'p-q',sec:'pubs',src:'pubs',cls:'w4',title:'Publications by quartile',sub:'Journal quartile of each publication',dim:'q',kinds:['doughnut','bar'],unit:'Publications',multicolor:true},
+ {id:'p-year',sec:'pubs',src:'pubs',cls:'w8',title:'Publications by year',sub:'Split by quartile',dim:'year',stack:'q',kinds:['bar','line'],unit:'Publications',percentable:true},
+ {id:'p-dept',sec:'pubs',src:'pubs',cls:'w7',title:'Publications by department',sub:'Number and share of Q1, Q2, Q3, Q4 and non-ranked outputs',dim:'dept',stack:'q',kinds:['hbar','doughnut'],unit:'Publications',percentable:true},
+ {id:'p-rank',sec:'pubs',src:'pubs',cls:'w5',title:'Publications by faculty rank',sub:'Split by quartile',dim:'rank',stack:'q',kinds:['hbar','doughnut'],unit:'Publications',percentable:true},
+ {id:'p-deptsum',sec:'pubs',cls:'w12',title:'Department summary: Q1 + Q2 share',sub:'Count and percentage of top-quartile output per department, with output per faculty member',dim:'dept',kinds:['bar','hbar'],unit:'Publications',build:pubDeptBuild}
+];
+var areaVal=function(r){return r.area;},qtyVal=function(r){return r.qty;};
+CARDS.space=[
+ {id:'i-block',sec:'space',src:'rooms',cls:'w6',title:'Space by block',sub:'Area in m² for each building block, split by space type',dim:'block',stack:'type',kinds:['bar','hbar'],unit:'m²',suffix:' m²',val:areaVal,percentable:true},
+ {id:'i-type',sec:'space',src:'rooms',cls:'w6',title:'Space by type',sub:'Offices, laboratories, storage, classrooms and other space',dim:'type',kinds:['doughnut','hbar'],unit:'m²',suffix:' m²',val:areaVal,multicolor:true},
+ {id:'i-staff',sec:'space',src:'rooms',cls:'w6',title:'Space by staff category',sub:'Space used by academic, administrative and admin-academic staff, and shared space',dim:'staff',stack:'type',kinds:['bar','doughnut'],unit:'m²',suffix:' m²',val:areaVal,percentable:true},
+ {id:'i-dept',sec:'space',src:'rooms',cls:'w6',title:'Space by department',sub:'Area by academic department and administrative unit, split by space type',dim:'dept',stack:'type',kinds:['hbar'],unit:'m²',suffix:' m²',val:areaVal,percentable:true,hideZero:true},
+ {id:'i-density',sec:'space',cls:'w12',title:'Office space per staff member',sub:'Office m² divided by headcount in each department or unit. The table also shows laboratories and total area.',dim:'dept',kinds:['hbar','bar'],unit:'m²',build:densityBuild}
+];
+CARDS.it=[
+ {id:'it-type',sec:'it',src:'assets',cls:'w6',title:'Equipment by type',sub:'Number of devices by equipment type',dim:'type',kinds:['doughnut','hbar'],unit:'Devices',val:qtyVal,multicolor:true},
+ {id:'it-year',sec:'it',src:'assets',cls:'w6',title:'Equipment by year of acquisition',sub:'Devices by the year they were acquired, split by type',dim:'year',stack:'type',kinds:['bar','line'],unit:'Devices',val:qtyVal,percentable:true},
+ {id:'it-dept',sec:'it',src:'assets',cls:'w6',title:'Equipment by department',sub:'Devices in each department or unit, split by type',dim:'dept',stack:'type',kinds:['hbar'],unit:'Devices',val:qtyVal,percentable:true,hideZero:true},
+ {id:'it-age',sec:'it',src:'assets',cls:'w6',title:'Equipment age by block',sub:'Age of the equipment in each building block. Devices older than 5 years are due for review.',dim:'block',stack:'age',kinds:['bar','hbar'],unit:'Devices',val:qtyVal,percentable:true}
+];
+CARDS.overview=[
+ {id:'o-level',sec:'students',src:'students',cls:'w6',title:'Students by level',sub:'Split by status',dim:'level',stack:'status',kinds:['bar','doughnut'],unit:'Students',ignoreFilters:true,link:'students',linkLabel:'Students'},
+ {id:'o-fund',sec:'students',src:'students',cls:'w6',title:'How students are funded',sub:'All levels',dim:'funding',kinds:['doughnut','hbar'],unit:'Students',ignoreFilters:true,link:'students',linkLabel:'Students'},
+ {id:'o-staff',sec:'staff',src:'staff',cls:'w6',title:'Staff by type',sub:'Administrative, academic and admin-academic',dim:'type',kinds:['doughnut','bar'],unit:'Staff',multicolor:true,ignoreFilters:true,link:'staff',linkLabel:'Staff'},
+ {id:'o-pubs',sec:'pubs',src:'pubs',cls:'w6',title:'Publications by year',sub:'Split by quartile',dim:'year',stack:'q',kinds:['bar','line'],unit:'Publications',ignoreFilters:true,link:'publications',linkLabel:'Publications'}
+];
+
+/* ---------- KPI definitions ---------- */
+function kpi(l,v,s,o){return Object.assign({l:l,v:v,s:s},o||{});}
+function studentKpis(sec,all){
+  var rs=all?STU:recs(sec,'students'),tot=rs.length;
+  var act=rs.filter(function(r){return r.status==='Active';}).length,loa=tot-act;
+  var fte=all?fteFor():fteFor(sec.filters.dept);
+  var sf=fte?act/fte:0;
+  var wm=rs.filter(function(r){return r.gender==='Female';}).length;
+  var intl=rs.filter(function(r){return r.country!=='Kazakhstan';}).length;
+  var gr=rs.filter(function(r){return r.funding!=='Self-paid';}).length;
+  return[
+   kpi('Total students',fmt(tot),all?'Enrolled in AY '+D.AY+'/'+String(D.AY+1).slice(2):'of '+fmt(STU.length)+' overall'),
+   kpi('Active',fmt(act),pct(act,tot)+' of selection',{f:['status','Active']}),
+   kpi('On leave of absence',fmt(loa),pct(loa,tot)+' of selection',{f:['status','LOA']}),
+   kpi('Student/faculty ratio',sf.toFixed(1)+' : 1','Target '+TARGET+' : 1',{tone:sf>TARGET?'warn':'ok'}),
+   kpi('Funded by grants',pct(gr,tot,0),fmt(gr)+' students, not self-paid'),
+   kpi('International',pct(intl,tot,0),'Citizens of other countries')
+  ].concat(all?[retAvgKpi()]:histKpis(sec));
+}
+function retAvgKpi(){
+  var by={};
+  D.HIST.forEach(function(r){var o=by[r.hcohort]||(by[r.hcohort]={n:0,k:0});o.n++;if(r.leftYear!==1)o.k++;});
+  var rates=Object.keys(by).map(function(k){return by[k].k/by[k].n*100;});
+  var avg=rates.reduce(function(a,b){return a+b;},0)/rates.length;
+  return kpi('Retention rate',avg.toFixed(1)+'%','First-year, average of cohorts 2019 to 2024');
+}
+function histKpis(sec){
+  var hs=recs(sec,'hist'),n=hs.length;
+  var g=hs.filter(function(r){return r.outcome.indexOf('Graduated')===0;});
+  var e=g.filter(function(r){return r.emp==='Employed';}).length,s=g.filter(function(r){return r.emp==='Seeking';}).length;
+  var ret=hs.filter(function(r){return r.leftYear!==1;}).length;
+  return[
+   kpi('Graduation rate',pct(g.length,n),fmt(g.length)+' of '+fmt(n)+' entrants, cohorts 2019 to 2024'),
+   kpi('Employment rate',pct(e,e+s),'Employed ÷ (employed + seeking work)'),
+   kpi('First-year retention',pct(ret,n),fmt(ret)+' of '+fmt(n)+' entrants')
+  ];
+}
+function spaceKpis(sec){
+  var rs=recs(sec,'rooms');
+  var sum=function(l){return l.reduce(function(a,r){return a+r.area;},0);};
+  var by=function(t){return sum(rs.filter(function(r){return r.type===t;}));};
+  var tot=sum(rs),off=by('Office'),ds=sec.filters.dept;
+  var staffN=STAFF.filter(function(s){return !ds||!ds.size||ds.has(s.dept);}).length;
+  var blocks={};rs.forEach(function(r){blocks[r.block]=1;});
+  return[
+   kpi('Total area',fmt(tot)+' m²',fmt(rs.length)+' rooms in '+Object.keys(blocks).length+' blocks'),
+   kpi('Offices',fmt(off)+' m²',pct(off,tot)+' of area',{f:['type','Office']}),
+   kpi('Laboratories',fmt(by('Laboratory'))+' m²',pct(by('Laboratory'),tot)+' of area',{f:['type','Laboratory']}),
+   kpi('Storage',fmt(by('Storage'))+' m²',pct(by('Storage'),tot)+' of area',{f:['type','Storage']}),
+   kpi('Classrooms',fmt(by('Classroom'))+' m²',pct(by('Classroom'),tot)+' of area',{f:['type','Classroom']}),
+   kpi('Office space per person',staffN?(off/staffN).toFixed(1)+' m²':'—','Office area ÷ staff headcount')
+  ];
+}
+function itKpis(sec){
+  var rs=recs(sec,'assets');
+  var sum=function(l){return l.reduce(function(a,r){return a+r.qty;},0);};
+  var tot=sum(rs);
+  var of=function(types){return sum(rs.filter(function(r){return types.indexOf(r.type)>=0;}));};
+  var ageSum=rs.reduce(function(a,r){return a+(D.AY-r.year)*r.qty;},0);
+  var old=sum(rs.filter(function(r){return D.AY-r.year>5;})),recent=sum(rs.filter(function(r){return D.AY-r.year<=1;}));
+  return[
+   kpi('Total devices',fmt(tot),'In the current selection'),
+   kpi('Computers',fmt(of(['Desktop computer','Laptop','Lab workstation'])),'Desktops, laptops, lab workstations'),
+   kpi('Servers and network',fmt(of(['Server','Network equipment'])),'Servers, switches, access points'),
+   kpi('Average age',tot?(ageSum/tot).toFixed(1)+' years':'—','Since acquisition'),
+   kpi('Older than 5 years',pct(old,tot,0),fmt(old)+' devices to review',{f:['age','6+ years'],tone:(tot&&old/tot>0.3)?'warn':'ok'}),
+   kpi('Added in the last 2 years',pct(recent,tot,0),fmt(recent)+' devices, 2025 and 2026')
+  ];
+}
+function staffKpis(sec,all){
+  var st=all?STAFF:recs(sec,'staff'),vc=all?VAC:recs(sec,'vac');
+  var by=function(t){return st.filter(function(r){return r.type===t;}).length;};
+  var avg=st.length?st.reduce(function(a,r){return a+r.load;},0)/st.length:0;
+  return[
+   kpi('Total staff',fmt(st.length),'Headcount'),
+   kpi('Academic',fmt(by('Academic')),'Faculty',{f:['type','Academic']}),
+   kpi('Administrative',fmt(by('Administrative')),'Non-teaching staff',{f:['type','Administrative']}),
+   kpi('Admin-academic',fmt(by('Admin-Academic')),'Chairs, directors, deans',{f:['type','Admin-Academic']}),
+   kpi('Open vacancies',fmt(vc.length),pct(vc.length,st.length+vc.length)+' of all positions',{tone:vc.length?'warn':'ok'}),
+   kpi('Average workload',st.length?avg.toFixed(0)+'%':'—','of contractual norm')
+  ];
+}
+function pubKpis(sec,all){
+  var ps=all?PUBS:recs(sec,'pubs'),fac=all?FAC:recs(sec,'fac');
+  var q1=ps.filter(function(p){return p.q==='Q1';}).length,q2=ps.filter(function(p){return p.q==='Q2';}).length;
+  var au={};ps.forEach(function(p){if(p.q==='Q1'||p.q==='Q2')au[p.fid]=1;});
+  return[
+   kpi('Publications',fmt(ps.length),all?'2022–2026':'In the current selection'),
+   kpi('Q1',fmt(q1),pct(q1,ps.length)+' of output',{f:['q','Q1']}),
+   kpi('Q2',fmt(q2),pct(q2,ps.length)+' of output',{f:['q','Q2']}),
+   kpi('Q1 + Q2 share',pct(q1+q2,ps.length),fmt(q1+q2)+' publications'),
+   kpi('Per faculty member',fac.length?(ps.length/fac.length).toFixed(1):'—',fmt(fac.length)+' faculty'),
+   kpi('Authors in Q1 or Q2',fmt(Object.keys(au).length),pct(Object.keys(au).length,fac.length,0)+' of faculty')
+  ];
+}
+function kpiStrip(sec,list){
+  return h('div',{class:'kpis'},list.map(function(k){
+    var on=k.f&&sec&&hasF(sec,k.f[0],k.f[1]);
+    var canClick=!!(k.f&&sec);
+    var cls='kpi'+(canClick?' click':'')+(on?' on':'')+(k.tone?' '+k.tone:'');
+    var inner=[h('div',{class:'l'},k.l),h('div',{class:'v'},k.v),h('div',{class:'s'},k.s)];
+    return canClick?h('button',{type:'button',class:cls,'aria-pressed':String(!!on),title:'Click to filter',onclick:function(){toggleFilter(sec,k.f[0],k.f[1]);}},inner):h('div',{class:cls},inner);
+  }));
+}
+
+/* ---------- filter bar ---------- */
+function filterBar(sec){
+  var wrap=h('div');
+  var quick=h('div',{class:'filters'});
+  sec.quick.forEach(function(k){
+    var d=sec.dims[k];
+    quick.append(h('div',{class:'fgroup',role:'group','aria-label':d.label},h('span',null,d.label),
+      h('button',{class:'chip',type:'button','aria-pressed':String(!(sec.filters[k]&&sec.filters[k].size)),onclick:function(){delete sec.filters[k];renderMain();}},'All'),
+      d.order.map(function(v){return h('button',{class:'chip',type:'button','aria-pressed':String(hasF(sec,k,v)),onclick:function(){toggleFilter(sec,k,v);}},v);})));
+  });
+  wrap.append(quick);
+  var pills=h('div',{class:'pills'});var n=0;
+  Object.keys(sec.filters).forEach(function(k){
+    if(sec.quick.indexOf(k)>=0)return;
+    sec.filters[k].forEach(function(v){n++;
+      pills.append(h('button',{class:'pill',type:'button',title:'Remove filter',onclick:function(){toggleFilter(sec,k,v);}},sec.dims[k].label+': '+v,h('i',{'aria-hidden':'true'},'×')));});
+  });
+  if(n)wrap.append(pills);
+  return wrap;
+}
+function pageHead(title,sub,sec){
+  var any=sec&&Object.keys(sec.filters).length>0;
+  return h('div',{class:'page-h'},h('div',null,h('h1',null,title),h('p',null,sub)),
+    any?h('button',{class:'btn',type:'button',onclick:function(){sec.filters={};renderMain();}},'Clear all filters'):null);
+}
+
+/* ---------- section renderers ---------- */
+function cardsGrid(sec,list){
+  var g=h('div',{class:'grid'});
+  list.forEach(function(c){var host=h('section',{class:'card '+(c.cls||'')});g.append(host);renderCard(SEC[c.sec]||sec,c,host);});
+  return g;
+}
+function viewOverview(m){
+  m.append(pageHead('Overview','A one-page summary for school leadership. Open a section for filters, charts and detailed tables.'));
+  m.append(h('h2',{class:'ov-h'},'Students'));
+  m.append(kpiStrip(null,studentKpis(SEC.students,true)));
+  m.append(h('h2',{class:'ov-h'},'Staff'));
+  m.append(kpiStrip(null,staffKpis(SEC.staff,true)));
+  m.append(h('h2',{class:'ov-h'},'Publications'));
+  m.append(kpiStrip(null,pubKpis(SEC.pubs,true)));
+  m.append(cardsGrid(SEC.students,CARDS.overview));
+}
+function viewStudents(m){
+  var sec=SEC.students;
+  m.append(pageHead('Students','Enrolment, status, funding, origin and student/faculty ratio. Click any bar, slice, table row or KPI to filter the whole page; click again to remove the filter.',sec));
+  m.append(filterBar(sec));
+  m.append(kpiStrip(sec,studentKpis(sec)));
+  var g=cardsGrid(sec,CARDS.students);
+  m.append(g);
+}
+function viewStaff(m){
+  var sec=SEC.staff;
+  m.append(pageHead('Staff','Headcount by type and department, vacancies and workload. Click any bar, slice, table row or KPI to filter.',sec));
+  m.append(filterBar(sec));
+  m.append(kpiStrip(sec,staffKpis(sec)));
+  var g=cardsGrid(sec,CARDS.staff);
+  var wrows=recs(sec,'staff').filter(function(r){return r.type!=='Administrative';}).map(function(r){
+    var secs=SCHED.filter(function(x){return x.fid===r.id;}),codes={};
+    secs.forEach(function(x){codes[x.code]=1;});
+    return{id:r.id,name:r.name,dept:r.dept,rank:r.rank,sections:secs.length,courses:Object.keys(codes).length,hours:r.hours,norm:r.norm*r.fte,load:r.load,
+      students:secs.reduce(function(a,x){return a+x.students;},0)};
+  });
+  g.append(tableCard('Teaching workload by faculty member','Based on the Fall 2026 timetable: weekly contact hours against the norm for each rank and FTE. Click a name to open the timetable. Follows the filters above.',dataTable({id:'dt-load',pageSize:15,placeholder:'Search faculty, department or rank…',sort:{key:'load',dir:'desc'},rows:wrows,
+    onRow:function(r){timetableModal(r.id);},
+    cols:[{key:'name',label:'Faculty member'},{key:'dept',label:'Department'},{key:'rank',label:'Rank'},{key:'sections',label:'Sections',num:true},{key:'courses',label:'Courses',num:true},
+      {key:'hours',label:'Contact hours / week',num:true},{key:'norm',label:'Norm, hours / week',num:true},
+      {key:'load',label:'Workload',num:true,fmt:function(v){return h('span',{class:'tag '+(v>110?'bad':v<80?'mid':'good')},v+'%');}},
+      {key:'students',label:'Students taught',num:true}]})));
+  m.append(g);
+}
+function viewPubs(m){
+  var sec=SEC.pubs;
+  m.append(pageHead('Publications','Output by faculty member and department, with journal quartile (Q1 to Q4). Click any bar, slice, table row or KPI to filter.',sec));
+  m.append(filterBar(sec));
+  m.append(kpiStrip(sec,pubKpis(sec)));
+  var g=cardsGrid(sec,CARDS.pubs);
+  var pubs=recs(sec,'pubs');var by={};pubs.forEach(function(p){(by[p.fid]||(by[p.fid]=[])).push(p);});
+  var rows=recs(sec,'fac').map(function(f){
+    var p=by[f.id]||[],c=function(q){return p.filter(function(x){return x.q===q;}).length;};
+    var q1=c('Q1'),q2=c('Q2');
+    return{id:f.id,faculty:f.name,dept:f.dept,rank:f.rank,total:p.length,q1:q1,q2:q2,q3:c('Q3'),q4:c('Q4'),nr:c('Not ranked'),top:p.length?Math.round((q1+q2)/p.length*100):0,fobj:f};
+  });
+  g.append(tableCard('Publications by faculty member','Click a name to see their publications. Columns sort when clicked.',dataTable({id:'dt-fac',pageSize:12,placeholder:'Search faculty or department…',sort:{key:'total',dir:'desc'},rows:rows,
+    onRow:function(r){facultyModal(r.fobj);},
+    cols:[{key:'faculty',label:'Faculty member'},{key:'dept',label:'Department'},{key:'rank',label:'Rank'},{key:'total',label:'Total',num:true},
+      {key:'q1',label:'Q1',num:true},{key:'q2',label:'Q2',num:true},{key:'q3',label:'Q3',num:true},{key:'q4',label:'Q4',num:true},{key:'nr',label:'Not ranked',num:true},
+      {key:'top',label:'Q1 + Q2 share',num:true,fmt:function(v,r){return r.total?v+'%':'—';}}]})));
+  m.append(g);
+}
+
+function viewInfra(m){
+  var st=ui('infra-tab',{tab:'space'});
+  var sec=st.tab==='it'?SEC.it:SEC.space;
+  m.append(pageHead('Infrastructure','Space allocation by block, type, department and staff category, and the IT equipment inventory by type, year and department. Click any bar, slice, table row or KPI to filter.',sec));
+  m.append(h('div',{class:'filters'},h('div',{class:'fgroup',role:'group','aria-label':'Infrastructure section'},
+    [['space','Space allocation'],['it','IT infrastructure']].map(function(t){
+      return h('button',{class:'chip',type:'button','aria-pressed':String(st.tab===t[0]),onclick:function(){st.tab=t[0];renderMain();}},t[1]);}))));
+  m.append(filterBar(sec));
+  if(st.tab==='it'){m.append(kpiStrip(sec,itKpis(sec)));m.append(cardsGrid(sec,CARDS.it));}
+  else{m.append(kpiStrip(sec,spaceKpis(sec)));m.append(cardsGrid(sec,CARDS.space));}
+}
+
+/* ---------- shell ---------- */
+var ROUTES=[
+ ['overview','Overview','<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>',viewOverview],
+ ['students','Students','<path d="M12 3 1 9l11 6 9-5v7h2V9L12 3zM5 13.2V17c0 1.7 3.1 3 7 3s7-1.3 7-3v-3.8l-7 3.8-7-3.8z"/>',viewStudents],
+ ['staff','Staff','<path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zM8 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13zm8 0c-.3 0-.6 0-1 .1 1.2.8 2 1.9 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5z"/>',viewStaff],
+ ['publications','Publications','<path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4zm3 3v2h9V7H7zm0 4v2h9v-2H7z"/>',viewPubs],
+ ['infrastructure','Infrastructure','<path d="M3 21V8l9-5 9 5v13h-7v-7h-4v7H3z"/>',viewInfra]
+];
+var route='overview';
+function go(r){
+  route=r;
+  try{if(location.hash!=='#'+r)history.replaceState(null,'','#'+r);}catch(e){}
+  renderNav();renderMain();window.scrollTo(0,0);
+}
+function renderNav(){
+  var nav=document.getElementById('nav');nav.innerHTML='';
+  ROUTES.forEach(function(r){
+    var b=h('button',{type:'button',onclick:function(){go(r[0]);}},h('span',{html:'<svg viewBox="0 0 24 24" aria-hidden="true">'+r[2]+'</svg>'}),r[1]);
+    if(r[0]===route)b.setAttribute('aria-current','page');
+    nav.append(b);
+  });
+}
+function renderMain(){
+  document.querySelectorAll('.card').forEach(function(c){if(c._chart){c._chart.destroy();c._chart=null;}});
+  var m=document.getElementById('main');m.innerHTML='';
+  for(var i=0;i<ROUTES.length;i++)if(ROUTES[i][0]===route){ROUTES[i][3](m);break;}
+  if(!HAS_CHART)m.prepend(h('div',{class:'tip',style:'margin-bottom:10px'},'Charts could not load, so tables are shown instead.'));
+}
+document.getElementById('asof').textContent='Data as of '+D.TODAY.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+document.getElementById('themeBtn').addEventListener('click',function(){
+  document.documentElement.setAttribute('data-theme',isDark()?'light':'dark');renderMain();
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(!document.documentElement.getAttribute('data-theme'))renderMain();});
+var hash=(location.hash||'').slice(1);
+if(ROUTES.some(function(r){return r[0]===hash;}))route=hash;
+window.addEventListener('hashchange',function(){var x=location.hash.slice(1);if(x!==route&&ROUTES.some(function(r){return r[0]===x;})){route=x;renderNav();renderMain();}});
+renderNav();renderMain();
+})();
+</script>
+</body>
+</html>
