@@ -463,6 +463,17 @@ ALLU.forEach(function(d){
 [[UNITS[5],10],[UNITS[3],2],[DEPTS[0],2],[DEPTS[1],1],[UNITS[1],2],[UNITS[4],1]].forEach(function(a){itLots('Server',a[0],a[1],'D');});
 itLots('Desktop computer','Shared',28);itLots('Network equipment','Shared',60);itLots('Projector & display','Shared',30);itLots('Video-conferencing kit','Shared',6);itLots('Printer & MFP','Shared',8);
 
+/* ---------- HR attributes: gender and rank category ---------- */
+var FEM={Professor:0.30,'Associate Professor':0.42,'Assistant Professor':0.50,'Senior Lecturer':0.62,Lecturer:0.68};
+var FDEPT={};FDEPT[DEPTS[0]]=-0.08;FDEPT[DEPTS[1]]=0;FDEPT[DEPTS[2]]=0.10;FDEPT[DEPTS[3]]=-0.02;FDEPT[DEPTS[4]]=0.12;
+STAFF.forEach(function(s){
+  var p=s.rank?FEM[s.rank]+(FDEPT[s.home]||0):0.72;
+  if(s.type==='Admin-Academic')p-=0.06;
+  s.gender=rnd()<p?'Female':'Male';
+  s.cat=s.rank||'Administrative';
+});
+VAC.forEach(function(v){v.cat=v.type==='Academic'?v.position:(v.type==='Admin-Academic'?(v.position.indexOf('Associate Dean')===0?'Professor':'Associate Professor'):'Administrative');});
+
 window.SSH_DATA={SPACE:SPACE,IT:IT,IT_TYPES:IT_TYPES,ITY:ITY,SCHED:SCHED,HIST:HIST,AY:AY,TODAY:TODAY,DEPTS:DEPTS,UNITS:UNITS,RANKS:RANKS,YEARS:YEARS,COURSES:COURSES,QN:QN,STU:STU,STAFF:STAFF,VAC:VAC,FAC:FAC,PUBS:PUBS,TARGET_SF:15};
 })();
 </script>
@@ -542,6 +553,8 @@ SEC.staff={key:'staff',filters:{},sources:{staff:STAFF,vac:VAC},quick:['type'],d
   type:{label:'Staff type',get:function(r){return r.type;},order:['Academic','Administrative','Admin-Academic'],colors:{Academic:1,Administrative:2,'Admin-Academic':4}},
   dept:{label:'Department',get:function(r){return r.dept;},order:ALLDEPTS},
   rank:{label:'Academic rank',get:function(r){return r.rank;},order:RANKS,srcs:['staff']},
+  gender:{label:'Gender',get:function(r){return r.gender;},order:['Female','Male'],colors:{Female:6,Male:7},srcs:['staff']},
+  cat:{label:'Rank / category',get:function(r){return r.cat;},order:RANKS.concat(['Administrative'])},
   lb:{label:'Workload',get:function(r){return r.lb;},order:['<80%','80–100%','101–120%','>120%'],srcs:['staff'],colors:{'<80%':7,'80–100%':1,'101–120%':2,'>120%':3}},
   vstatus:{label:'Vacancy status',get:function(r){return r.status;},order:['Open','Interviewing','Offer made'],srcs:['vac'],colors:{Open:3,Interviewing:2,'Offer made':1}}
 }};
@@ -995,6 +1008,23 @@ function densityBuild(sec){
       foot:['All, including shared space',fmt(T.n),fmt(T.area),fmt(T.off),fmt(T.lab),fmt(T.hc),T.hc?overall.toFixed(1):'—']}};
 }
 
+function planBuild(dimKey,labels){
+  var hdr=dimKey==='cat'?'Rank / category':'Department / unit';
+  var get=function(r){return dimKey==='cat'?r.cat:r.dept;};
+  return function(sec){
+    var st=recs(sec,'staff',dimKey),vc=recs(sec,'vac',dimKey);
+    var rows=labels.map(function(l){
+      var a=st.filter(function(r){return get(r)===l;}).length,v=vc.filter(function(r){return get(r)===l;}).length;
+      return{l:l,a:a,v:v,p:a+v};});
+    var A=st.length,V=vc.length,P=A+V;
+    return{labels:labels.slice(),totals:rows.map(function(r){return r.p;}),grand:P,stacked:true,
+      series:[{name:'Actual staff',data:rows.map(function(r){return r.a;}),color:'c1'},{name:'Vacant positions',data:rows.map(function(r){return r.v;}),color:'c3'}],
+      table:{head:[hdr,'Approved positions','Actual staff','Vacant','Fill rate'],num:[false,true,true,true,true],
+        rows:rows.map(function(r){return{label:r.l,cells:[r.l,fmt(r.p),fmt(r.a),fmt(r.v),pct(r.a,r.p)]};}),
+        foot:['All',fmt(P),fmt(A),fmt(V),pct(A,P)]}};
+  };
+}
+
 /* ---------- card definitions ---------- */
 var CARDS={};
 CARDS.students=[
@@ -1020,7 +1050,11 @@ CARDS.staff=[
  {id:'t-vac',sec:'staff',src:'vac',cls:'w6',title:'Vacancies by department',sub:'Open positions, split by staff type',dim:'dept',stack:'type',kinds:['hbar','doughnut'],unit:'Vacancies',hideZero:true},
  {id:'t-rank',sec:'staff',src:'staff',cls:'w6',title:'Faculty by rank',sub:'Academic and admin-academic staff',dim:'rank',stack:'type',kinds:['bar','doughnut'],unit:'Faculty',where:function(r){return !!r.rank;}},
  {id:'t-vstatus',sec:'staff',src:'vac',cls:'w6',title:'Recruitment pipeline',sub:'Where open vacancies stand',dim:'vstatus',stack:'type',kinds:['doughnut','bar'],unit:'Vacancies'},
- {id:'t-load',sec:'staff',cls:'w6',title:'Workload by department',sub:'Average workload as a % of contractual norm (100% = full norm)',dim:'dept',kinds:['hbar','bar'],unit:'Staff',build:loadBuild}
+ {id:'t-load',sec:'staff',cls:'w6',title:'Workload by department',sub:'Average workload as a % of contractual norm (100% = full norm)',dim:'dept',kinds:['hbar','bar'],unit:'Staff',build:loadBuild},
+ {id:'t-plan-dept',sec:'staff',cls:'w6',title:'Approved vs actual staff by department',sub:'Approved positions = filled positions plus open vacancies. Share % shows the fill rate.',dim:'dept',kinds:['hbar','bar'],unit:'Positions',percentable:true,build:planBuild('dept',ALLDEPTS)},
+ {id:'t-plan-rank',sec:'staff',cls:'w6',title:'Approved vs actual staff by rank',sub:'Academic ranks and administrative staff. Share % shows the fill rate.',dim:'cat',kinds:['bar','hbar'],unit:'Positions',percentable:true,build:planBuild('cat',RANKS.concat(['Administrative']))},
+ {id:'t-gender-rank',sec:'staff',src:'staff',cls:'w6',title:'Gender by rank',sub:'Women and men in each academic rank and in administrative roles',dim:'cat',stack:'gender',kinds:['hbar','bar'],unit:'Staff',percentable:true},
+ {id:'t-gender-dept',sec:'staff',src:'staff',cls:'w6',title:'Gender by department',sub:'Women and men in each department or unit',dim:'dept',stack:'gender',kinds:['hbar','bar'],unit:'Staff',percentable:true}
 ];
 CARDS.pubs=[
  {id:'p-q',sec:'pubs',src:'pubs',cls:'w4',title:'Publications by quartile',sub:'Journal quartile of each publication',dim:'q',kinds:['doughnut','bar'],unit:'Publications',multicolor:true},
@@ -1128,6 +1162,8 @@ function staffKpis(sec,all){
   var st=all?STAFF:recs(sec,'staff'),vc=all?VAC:recs(sec,'vac');
   var by=function(t){return st.filter(function(r){return r.type===t;}).length;};
   var avg=st.length?st.reduce(function(a,r){return a+r.load;},0)/st.length:0;
+  var wf=st.filter(function(r){return r.gender==='Female';}).length;
+  var prof=st.filter(function(r){return r.rank==='Professor';}),pw=prof.filter(function(r){return r.gender==='Female';}).length;
   return[
    kpi('Total staff',fmt(st.length),'Headcount'),
    kpi('Academic',fmt(by('Academic')),'Faculty',{f:['type','Academic']}),
@@ -1135,7 +1171,7 @@ function staffKpis(sec,all){
    kpi('Admin-academic',fmt(by('Admin-Academic')),'Chairs, directors, deans',{f:['type','Admin-Academic']}),
    kpi('Open vacancies',fmt(vc.length),pct(vc.length,st.length+vc.length)+' of all positions',{tone:vc.length?'warn':'ok'}),
    kpi('Average workload',st.length?avg.toFixed(0)+'%':'—','of contractual norm')
-  ];
+  ].concat(all?[]:[kpi('Women',pct(wf,st.length,0),'Among professors: '+pct(pw,prof.length,0))]);
 }
 function pubKpis(sec,all){
   var ps=all?PUBS:recs(sec,'pubs'),fac=all?FAC:recs(sec,'fac');
@@ -1241,6 +1277,17 @@ function viewStaff(m){
       {key:'hours',label:'Contact hours / week',num:true},{key:'norm',label:'Norm, hours / week',num:true},
       {key:'load',label:'Workload',num:true,fmt:function(v){return h('span',{class:'tag '+(v>110?'bad':v<80?'mid':'good')},v+'%');}},
       {key:'students',label:'Students taught',num:true}]})));
+  var CATS=RANKS.concat(['Administrative']),cross={};
+  function slot(d,c){var k=d+'|'+c;return cross[k]||(cross[k]={dept:d,cat:c,a:0,v:0,f:0,mm:0});}
+  recs(sec,'staff').forEach(function(r){var o=slot(r.dept,r.cat);o.a++;if(r.gender==='Female')o.f++;else o.mm++;});
+  recs(sec,'vac').forEach(function(r){slot(r.dept,r.cat).v++;});
+  var crows=Object.keys(cross).map(function(k){var o=cross[k];
+    return{dept:o.dept,cat:o.cat,approved:o.a+o.v,actual:o.a,vacant:o.v,fill:(o.a+o.v)?Math.round(o.a/(o.a+o.v)*100):0,women:o.f,men:o.mm,wpct:o.a?Math.round(o.f/o.a*100):0};})
+    .sort(function(a,b){return (ALLDEPTS.indexOf(a.dept)-ALLDEPTS.indexOf(b.dept))||(CATS.indexOf(a.cat)-CATS.indexOf(b.cat));});
+  g.append(tableCard('Staffing and gender by department and rank','Approved positions, actual staff, vacancies and the gender split for each department and rank. Follows the filters above.',dataTable({id:'dt-cross',pageSize:15,placeholder:'Search department or rank…',rows:crows,
+    cols:[{key:'dept',label:'Department / unit'},{key:'cat',label:'Rank / category'},{key:'approved',label:'Approved',num:true},{key:'actual',label:'Actual',num:true},{key:'vacant',label:'Vacant',num:true},
+      {key:'fill',label:'Fill rate',num:true,fmt:function(v){return v+'%';}},{key:'women',label:'Women',num:true},{key:'men',label:'Men',num:true},
+      {key:'wpct',label:'Women %',num:true,fmt:function(v,r){return r.actual?v+'%':'—';}}]})));
   m.append(g);
 }
 function viewPubs(m){
