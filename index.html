@@ -522,7 +522,7 @@ function seg(opts,cur,on,label){
 
 /* ---------- dimensions & sections ---------- */
 var SEC={};
-SEC.students={key:'students',filters:{},sources:{students:STU,hist:D.HIST},quick:['level','status'],dims:{
+SEC.students={key:'students',filters:{},sources:{students:STU,hist:D.HIST},quick:['level','status'],selects:[{k:'major',opts:function(){return MAJ_LIST;}},{k:'dept',opts:function(){return DEPTS;}}],dims:{
   status:{label:'Status',get:function(r){return r.status;},order:['Active','LOA'],srcs:['students'],colors:{Active:1,LOA:3}},
   level:{label:'Level',get:function(r){return r.level;},order:['UG','Master','PhD'],colors:{UG:1,Master:2,PhD:4}},
   major:{label:'Major',get:function(r){return r.major;}},
@@ -1055,7 +1055,12 @@ function kpi(l,v,s,o){return Object.assign({l:l,v:v,s:s},o||{});}
 function studentKpis(sec,all){
   var rs=all?STU:recs(sec,'students'),tot=rs.length;
   var act=rs.filter(function(r){return r.status==='Active';}).length,loa=tot-act;
-  var fte=all?fteFor():fteFor(sec.filters.dept);
+  var dset=sec.filters.dept;
+  if(!all&&sec.filters.major){
+    var md=new Set();STU.forEach(function(r){if(sec.filters.major.has(r.major))md.add(r.dept);});
+    dset=(dset&&dset.size)?new Set(Array.from(md).filter(function(d){return dset.has(d);})):md;
+  }
+  var fte=all?fteFor():fteFor(dset);
   var sf=fte?act/fte:0;
   var wm=rs.filter(function(r){return r.gender==='Female';}).length;
   var intl=rs.filter(function(r){return r.country!=='Kazakhstan';}).length;
@@ -1064,7 +1069,7 @@ function studentKpis(sec,all){
    kpi('Total students',fmt(tot),all?'Enrolled in AY '+D.AY+'/'+String(D.AY+1).slice(2):'of '+fmt(STU.length)+' overall'),
    kpi('Active',fmt(act),pct(act,tot)+' of selection',{f:['status','Active']}),
    kpi('On leave of absence',fmt(loa),pct(loa,tot)+' of selection',{f:['status','LOA']}),
-   kpi('Student/faculty ratio',sf.toFixed(1)+' : 1','Target '+TARGET+' : 1',{tone:sf>TARGET?'warn':'ok'}),
+   kpi('Student/faculty ratio',sf.toFixed(1)+' : 1','Target '+TARGET+' : 1'+((!all&&sec.filters.major)?', faculty of the department':''),{tone:sf>TARGET?'warn':'ok'}),
    kpi('Funded by grants',pct(gr,tot,0),fmt(gr)+' students, not self-paid'),
    kpi('International',pct(intl,tot,0),'Citizens of other countries')
   ].concat(all?[retAvgKpi()]:histKpis(sec));
@@ -1164,6 +1169,19 @@ function filterBar(sec){
     quick.append(h('div',{class:'fgroup',role:'group','aria-label':d.label},h('span',null,d.label),
       h('button',{class:'chip',type:'button','aria-pressed':String(!(sec.filters[k]&&sec.filters[k].size)),onclick:function(){delete sec.filters[k];renderMain();}},'All'),
       d.order.map(function(v){return h('button',{class:'chip',type:'button','aria-pressed':String(hasF(sec,k,v)),onclick:function(){toggleFilter(sec,k,v);}},v);})));
+  });
+  (sec.selects||[]).forEach(function(s){
+    var d=sec.dims[s.k],cur=sec.filters[s.k];
+    var val=(cur&&cur.size===1)?Array.from(cur)[0]:'';
+    var sel=h('select',{class:'mini','aria-label':d.label,onchange:function(){
+      if(sel.value==='__multi')return;
+      delete sec.filters[s.k];
+      if(sel.value)sec.filters[s.k]=new Set([sel.value]);
+      renderMain();}},
+      h('option',{value:''},'All'),
+      (cur&&cur.size>1)?h('option',{value:'__multi',selected:true},'Several selected'):null,
+      s.opts().map(function(o){return h('option',{value:o,selected:o===val},o);}));
+    quick.append(h('div',{class:'fgroup'},h('span',null,d.label),sel));
   });
   wrap.append(quick);
   var pills=h('div',{class:'pills'});var n=0;
