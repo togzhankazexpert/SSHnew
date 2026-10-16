@@ -102,6 +102,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .mini{padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:12.5px;color:var(--ink-2)}
 .mini:hover{border-color:var(--accent);color:var(--accent)}
 select.mini{font:inherit;font-size:12.5px;color:var(--ink-2);max-width:210px}
+input.mini{font:inherit;font-size:12.5px;color:var(--ink)}
+.lim{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);font-size:12.5px}
 .chartwrap{position:relative;width:100%}
 .empty{padding:40px 10px;text-align:center;color:var(--ink-3)}
 
@@ -474,6 +476,13 @@ STAFF.forEach(function(s){
 });
 VAC.forEach(function(v){v.cat=v.type==='Academic'?v.position:(v.type==='Admin-Academic'?(v.position.indexOf('Associate Dean')===0?'Professor':'Associate Professor'):'Administrative');});
 
+/* ---------- Leave balances ---------- */
+STAFF.forEach(function(s){
+  s.leaveEnt=(s.type==='Administrative')?28:42;
+  var u=rnd(),k=(s.dept===UNITS[1]||s.dept===UNITS[2])?1.3:1;
+  s.leaveBal=Math.min(95,Math.round(70*(0.05+0.95*u*u)*k));
+});
+
 window.SSH_DATA={SPACE:SPACE,IT:IT,IT_TYPES:IT_TYPES,ITY:ITY,SCHED:SCHED,HIST:HIST,AY:AY,TODAY:TODAY,DEPTS:DEPTS,UNITS:UNITS,RANKS:RANKS,YEARS:YEARS,COURSES:COURSES,QN:QN,STU:STU,STAFF:STAFF,VAC:VAC,FAC:FAC,PUBS:PUBS,TARGET_SF:15};
 })();
 </script>
@@ -487,6 +496,7 @@ var STU=D.STU,STAFF=D.STAFF,VAC=D.VAC,FAC=D.FAC,PUBS=D.PUBS,DEPTS=D.DEPTS,UNITS=
 var ALLDEPTS=DEPTS.concat(UNITS);
 var SCHED=D.SCHED;
 var TARGET=D.TARGET_SF;
+var LEAVE_LIMIT=56;
 var HAS_CHART=typeof Chart!=='undefined';
 
 /* ---------- helpers ---------- */
@@ -1070,6 +1080,32 @@ function planBuild2(sec,st){
       foot:['All',fmt(P),fmt(A),fmt(V),pct(A,P)]}};
 }
 
+function leaveBuild(sec,st){
+  var stf=recs(sec,'staff','dept'),L=ALLDEPTS.slice(),types=['Academic','Administrative','Admin-Academic'],tc=['c1','c2','c4'];
+  var sumBal=function(l){return l.reduce(function(a,x){return a+(x.leaveBal||0);},0);};
+  var rows=L.map(function(d){
+    var r=stf.filter(function(x){return x.dept===d;}),tot=sumBal(r);
+    return{d:d,r:r,n:r.length,tot:tot,avg:r.length?tot/r.length:0,over:r.filter(function(x){return x.leaveBal>LEAVE_LIMIT;}).length};});
+  var T=stf.length,TT=sumBal(stf),OV=rows.reduce(function(a,r){return a+r.over;},0),overall=T?TT/T:0;
+  var total=st.metric==='total',series;
+  if(total){
+    series=types.map(function(t,i){return{name:t,color:tc[i],suffix:' days',data:rows.map(function(row){return sumBal(row.r.filter(function(x){return x.type===t;}));})};})
+      .filter(function(s){return s.data.some(function(v){return v>0;});});
+  }else if(st.metric==='over')series=[{name:'Employees above limit',color:'c3',suffix:' people',data:rows.map(function(r){return r.over;})}];
+  else series=[{name:'Average per employee',color:'c1',suffix:' days',data:rows.map(function(r){return +r.avg.toFixed(1);})}];
+  return{labels:L,totals:rows.map(function(r){return r.tot;}),grand:TT,stacked:total,series:series,
+    refLine:(st.metric==='avg')?{value:+overall.toFixed(1),label:'School '+overall.toFixed(1)+' days'}:null,
+    table:{head:['Department / unit','Employees','Total accrued days','Average per employee','Above limit ('+LEAVE_LIMIT+' days)'],num:[false,true,true,true,true],
+      rows:rows.map(function(r){return{label:r.d,cells:[r.d,fmt(r.n),fmt(r.tot),r.n?r.avg.toFixed(1):'—',fmt(r.over)]};}),
+      foot:['All',fmt(T),fmt(TT),T?overall.toFixed(1):'—',fmt(OV)]}};
+}
+function leaveExtra(sec,st,again){
+  var inp=h('input',{type:'number',min:'1',value:String(LEAVE_LIMIT),class:'mini','aria-label':'Leave limit in days',style:'width:74px',
+    onchange:function(){var v=parseInt(inp.value,10);if(v>0){LEAVE_LIMIT=v;renderMain();}else inp.value=String(LEAVE_LIMIT);}});
+  return [seg([['avg','Average per employee'],['total','Total days'],['over','Above limit']],st.metric,function(v){st.metric=v;again();},'Metric'),
+    h('label',{class:'lim'},'Limit, days',inp)];
+}
+
 /* ---------- card definitions ---------- */
 var CARDS={};
 CARDS.students=[
@@ -1206,6 +1242,7 @@ function staffKpis(sec,all){
   var by=function(t){return st.filter(function(r){return r.type===t;}).length;};
   var avg=st.length?st.reduce(function(a,r){return a+r.load;},0)/st.length:0;
   var wf=st.filter(function(r){return r.gender==='Female';}).length;
+  var lv=st.reduce(function(a,r){return a+(r.leaveBal||0);},0),lo=st.filter(function(r){return r.leaveBal>LEAVE_LIMIT;}).length;
   var prof=st.filter(function(r){return r.rank==='Professor';}),pw=prof.filter(function(r){return r.gender==='Female';}).length;
   return[
    kpi('Total staff',fmt(st.length),'Headcount'),
@@ -1214,7 +1251,9 @@ function staffKpis(sec,all){
    kpi('Admin-academic',fmt(by('Admin-Academic')),'Chairs, directors, deans',{f:['type','Admin-Academic']}),
    kpi('Open vacancies',fmt(vc.length),pct(vc.length,st.length+vc.length)+' of all positions',{tone:vc.length?'warn':'ok'}),
    kpi('Average workload',st.length?avg.toFixed(0)+'%':'—','of contractual norm')
-  ].concat(all?[]:[kpi('Women',pct(wf,st.length,0),'Among professors: '+pct(pw,prof.length,0))]);
+  ].concat(all?[]:[kpi('Women',pct(wf,st.length,0),'Among professors: '+pct(pw,prof.length,0)),
+    kpi('Accrued leave',fmt(lv)+' days','Average '+(st.length?(lv/st.length).toFixed(1):'—')+' per employee'),
+    kpi('Leave above limit',fmt(lo),pct(lo,st.length,0)+' of employees, limit '+LEAVE_LIMIT+' days',{tone:lo?'warn':'ok'})]);
 }
 function pubKpis(sec,all){
   var ps=all?PUBS:recs(sec,'pubs'),fac=all?FAC:recs(sec,'fac');
@@ -1331,6 +1370,22 @@ function viewStaff(m){
     cols:[{key:'dept',label:'Department / unit'},{key:'cat',label:'Rank / category'},{key:'approved',label:'Approved',num:true},{key:'actual',label:'Actual',num:true},{key:'vacant',label:'Vacant',num:true},
       {key:'fill',label:'Fill rate',num:true,fmt:function(v){return v+'%';}},{key:'women',label:'Women',num:true},{key:'men',label:'Men',num:true},
       {key:'wpct',label:'Women %',num:true,fmt:function(v,r){return r.actual?v+'%':'—';}}]})));
+  var ls=ui('leave-tbl',{dept:'',over:false});
+  var allL=recs(sec,'staff').filter(function(r){return !ls.dept||r.dept===ls.dept;});
+  var inpL=h('input',{type:'number',min:'1',value:String(LEAVE_LIMIT),class:'mini','aria-label':'Leave limit in days',style:'width:74px',
+    onchange:function(){var v=parseInt(inpL.value,10);if(v>0){LEAVE_LIMIT=v;renderMain();}else inpL.value=String(LEAVE_LIMIT);}});
+  var selL=h('select',{class:'mini','aria-label':'Department',onchange:function(){ls.dept=selL.value;renderMain();}},
+    h('option',{value:''},'All departments'),ALLDEPTS.map(function(o){return h('option',{value:o,selected:o===ls.dept},o);}));
+  var leaveBar=h('div',{class:'filters'},h('div',{class:'fgroup'},h('span',null,'Department'),selL),h('label',{class:'lim'},'Limit, days',inpL),
+    h('button',{class:'chip',type:'button','aria-pressed':String(ls.over),onclick:function(){ls.over=!ls.over;renderMain();}},'Above limit only'));
+  var lt=allL.reduce(function(a,r){return a+r.leaveBal;},0),lov=allL.filter(function(r){return r.leaveBal>LEAVE_LIMIT;}).length;
+  var leaveSummary=kpiStrip(null,[kpi('Employees',fmt(allL.length),ls.dept||'All departments'),kpi('Total accrued days',fmt(lt),'Unused leave days'),
+    kpi('Average per employee',allL.length?(lt/allL.length).toFixed(1):'—','Days per person'),kpi('Above limit',fmt(lov),'More than '+LEAVE_LIMIT+' days',{tone:lov?'warn':'ok'})]);
+  var lrows=allL.filter(function(r){return !ls.over||r.leaveBal>LEAVE_LIMIT;}).map(function(r){return{id:r.id,name:r.name,dept:r.dept,type:r.type,position:r.position,bal:r.leaveBal,status:r.leaveBal>LEAVE_LIMIT?'Needs attention':'OK'};});
+  g.append(tableCard('Accrued leave days by employee','Unused leave days per employee. Search by name, pick a department and set the limit: employees above it are marked as needing attention. Contains personal data, share with HR and leadership only.',h('div',null,leaveBar,leaveSummary,dataTable({id:'dt-leave',pageSize:15,placeholder:'Search employee, department or position…',sort:{key:'bal',dir:'desc'},rows:lrows,
+    cols:[{key:'name',label:'Employee'},{key:'dept',label:'Department / unit'},{key:'type',label:'Staff type'},{key:'position',label:'Position / rank'},
+      {key:'bal',label:'Accrued days',num:true},
+      {key:'status',label:'Status',fmt:function(v){return h('span',{class:'tag '+(v==='OK'?'good':'bad')},v);}}]}))));
   m.append(g);
 }
 function viewPubs(m){
