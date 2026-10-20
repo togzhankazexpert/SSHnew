@@ -1144,10 +1144,9 @@ CARDS.pubs=[
 ];
 var areaVal=function(r){return r.area;},qtyVal=function(r){return r.qty;};
 CARDS.space=[
- {id:'i-block',sec:'space',src:'rooms',cls:'w6',title:'Space by block',sub:'Area in m² for each building block, split by space type',dim:'block',stack:'type',kinds:['bar','hbar'],unit:'m²',suffix:' m²',val:areaVal,percentable:true},
  {id:'i-type',sec:'space',src:'rooms',cls:'w6',title:'Space by type',sub:'Offices, laboratories, storage, classrooms and other space',dim:'type',kinds:['doughnut','hbar'],unit:'m²',suffix:' m²',val:areaVal,multicolor:true},
  {id:'i-staff',sec:'space',src:'rooms',cls:'w6',title:'Space by staff category',sub:'Space used by academic, administrative and admin-academic staff, and shared space',dim:'staff',stack:'type',kinds:['bar','doughnut'],unit:'m²',suffix:' m²',val:areaVal,percentable:true},
- {id:'i-dept',sec:'space',src:'rooms',cls:'w6',title:'Space by department',sub:'Area by academic department and administrative unit, split by space type',dim:'dept',stack:'type',kinds:['hbar'],unit:'m²',suffix:' m²',val:areaVal,percentable:true,hideZero:true},
+ {id:'i-dept',sec:'space',src:'rooms',cls:'w12',title:'Space by department',sub:'Area by academic department and administrative unit, split by space type',dim:'dept',stack:'type',kinds:['hbar'],unit:'m²',suffix:' m²',val:areaVal,percentable:true,hideZero:true},
  {id:'i-density',sec:'space',cls:'w12',title:'Office space per staff member',sub:'Office m² divided by headcount in each department or unit. The table also shows laboratories and total area.',dim:'dept',kinds:['hbar','bar'],unit:'m²',build:densityBuild}
 ];
 CARDS.it=[
