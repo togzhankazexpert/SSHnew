@@ -476,6 +476,21 @@ STAFF.forEach(function(s){
 });
 VAC.forEach(function(v){v.cat=v.type==='Academic'?v.position:(v.type==='Admin-Academic'?(v.position.indexOf('Associate Dean')===0?'Professor':'Associate Professor'):'Administrative');});
 
+/* ---------- Office assignments ---------- */
+var offRooms={},offStaff={},spById={};
+SPACE.forEach(function(r){spById[r.id]=r;if(r.type==='Office'){var k=r.dept+'|'+r.staff;(offRooms[k]||(offRooms[k]=[])).push(r);}});
+STAFF.forEach(function(s){var k=s.dept+'|'+s.type;(offStaff[k]||(offStaff[k]=[])).push(s);});
+Object.keys(offStaff).forEach(function(k){
+  var rooms=offRooms[k]||[];
+  offStaff[k].forEach(function(s,i){if(rooms.length){var r=rooms[i%rooms.length];s.roomId=r.id;r.occ=(r.occ||0)+1;}});
+});
+SPACE.forEach(function(r){r.occ=r.occ||0;r.occupancy=r.type==='Office'?(r.occ>1?'Shared':(r.occ===1?'Single':'Vacant')):'n/a';});
+STAFF.forEach(function(s){
+  var r=spById[s.roomId];
+  if(!r)return;
+  s.room=r.room;s.block=r.block;s.floor=r.floor;s.roomArea=r.area;s.occupants=r.occ;s.officeType=r.occ>1?'Shared':'Single';s.perPerson=+(r.area/r.occ).toFixed(1);
+});
+
 /* ---------- Leave balances ---------- */
 STAFF.forEach(function(s){
   s.leaveEnt=(s.type==='Administrative')?28:42;
@@ -483,7 +498,50 @@ STAFF.forEach(function(s){
   s.leaveBal=Math.min(95,Math.round(70*(0.05+0.95*u*u)*k));
 });
 
-window.SSH_DATA={SPACE:SPACE,IT:IT,IT_TYPES:IT_TYPES,ITY:ITY,SCHED:SCHED,HIST:HIST,AY:AY,TODAY:TODAY,DEPTS:DEPTS,UNITS:UNITS,RANKS:RANKS,YEARS:YEARS,COURSES:COURSES,QN:QN,STU:STU,STAFF:STAFF,VAC:VAC,FAC:FAC,PUBS:PUBS,TARGET_SF:15};
+/* ---------- Individual devices assigned to employees ---------- */
+var ITDEV=[],tagN={Laptop:0,'Desktop computer':0};
+IT.forEach(function(l){
+  if(l.type!=='Laptop'&&l.type!=='Desktop computer')return;
+  for(var k=0;k<l.qty;k++){tagN[l.type]++;ITDEV.push({tag:(l.type==='Laptop'?'LT-':'PC-')+pad(tagN[l.type],4),type:l.type,dept:l.dept,year:l.year,block:l.block,assignee:null});}
+});
+function shuffle(a){for(var i2=a.length-1;i2>0;i2--){var j2=Math.floor(rnd()*(i2+1)),t2=a[i2];a[i2]=a[j2];a[j2]=t2;}return a;}
+var PRI={Laptop:{Academic:0,'Admin-Academic':0,Administrative:1},'Desktop computer':{Administrative:0,'Admin-Academic':1,Academic:2}};
+['Laptop','Desktop computer'].forEach(function(tp){
+  ALLU.forEach(function(d){
+    var devs=shuffle(ITDEV.filter(function(x){return x.type===tp&&x.dept===d;}));
+    var people=STAFF.filter(function(s){return s.dept===d;}).sort(function(a,b){return PRI[tp][a.type]-PRI[tp][b.type];});
+    people.forEach(function(s,i3){if(devs[i3])devs[i3].assignee=s.id;});
+  });
+});
+var stById={};
+STAFF.forEach(function(s){s.devices=[];stById[s.id]=s;});
+ITDEV.forEach(function(x){if(x.assignee)stById[x.assignee].devices.push({tag:x.tag,type:x.type,year:x.year,block:x.block});});
+
+/* ---------- Personal equipment kit per employee ---------- */
+var kitN={Monitor:0,'Docking station':0,'Phone & headset':0,Tablet:0};
+var kitPre={Monitor:'MN-','Docking station':'DK-','Phone & headset':'PH-',Tablet:'TB-'};
+var kitCnt={};
+function addKit(s,type){
+  var y=wp(ITY.map(function(y0,ix){return [y0,ITW[ix]];}));
+  var blk=s.block||'Block A';
+  kitN[type]++;
+  s.devices.push({tag:kitPre[type]+pad(kitN[type],4),type:type,year:y,block:blk});
+  var key=type+'|'+s.dept+'|'+y+'|'+blk;kitCnt[key]=(kitCnt[key]||0)+1;
+}
+STAFF.forEach(function(s){
+  var hasPc=s.devices.some(function(d){return d.type==='Desktop computer';});
+  var hasLap=s.devices.some(function(d){return d.type==='Laptop';});
+  var adm=s.type!=='Academic';
+  var nm=hasPc?(rnd()<0.6?2:1):((hasLap&&rnd()<0.6)?1:0);
+  for(var q1=0;q1<nm;q1++)addKit(s,'Monitor');
+  if(hasLap&&rnd()<0.8)addKit(s,'Docking station');
+  if(rnd()<(adm?0.9:0.5))addKit(s,'Phone & headset');
+  if(s.type!=='Administrative'&&rnd()<0.35)addKit(s,'Tablet');
+});
+Object.keys(kitCnt).forEach(function(k){var p=k.split('|');IT.push({id:'IT-'+pad(IT.length+1,4),type:p[0],dept:p[1],year:+p[2],block:p[3],qty:kitCnt[k]});});
+IT_TYPES=IT_TYPES.concat(['Monitor','Docking station','Phone & headset','Tablet']);
+
+window.SSH_DATA={ITDEV:ITDEV,SPACE:SPACE,IT:IT,IT_TYPES:IT_TYPES,ITY:ITY,SCHED:SCHED,HIST:HIST,AY:AY,TODAY:TODAY,DEPTS:DEPTS,UNITS:UNITS,RANKS:RANKS,YEARS:YEARS,COURSES:COURSES,QN:QN,STU:STU,STAFF:STAFF,VAC:VAC,FAC:FAC,PUBS:PUBS,TARGET_SF:15};
 })();
 </script>
 
@@ -521,9 +579,9 @@ function add(e,kid){
 }
 function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
 function T(){return{ink:cssv('--ink'),ink2:cssv('--ink-2'),ink3:cssv('--ink-3'),line:cssv('--line'),surface:cssv('--surface'),
-  c:[1,2,3,4,5,6,7,8].map(function(i){return cssv('--c'+i);})};}
+  c:[1,2,3,4,5,6,7,8].map(function(i){return cssv('--c'+i);}).concat(isDark()?['#c69a6a','#8fbf6a','#d97bb0','#7f90b8']:['#9a6b3f','#5f8f3e','#b94a7a','#3f4f6f'])};}
 function fade(hex,on){return on?hex+'45':hex;}
-function colorFor(dim,name,i,t){var k=dim&&dim.colors&&dim.colors[name];return k?t.c[k-1]:t.c[i%8];}
+function colorFor(dim,name,i,t){var k=dim&&dim.colors&&dim.colors[name];return k?t.c[k-1]:t.c[i%t.c.length];}
 function cv(t,key){return t.c[parseInt(String(key).slice(1),10)-1];}
 function wrap(s,n){var out=[],cur='';String(s).split(' ').forEach(function(w){if((cur+' '+w).trim().length>n&&cur){out.push(cur);cur=w;}else cur=(cur+' '+w).trim();});if(cur)out.push(cur);return out;}
 function isDark(){var a=document.documentElement.getAttribute('data-theme');return a?a==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;}
@@ -578,13 +636,14 @@ SEC.pubs={key:'pubs',filters:{},sources:{pubs:PUBS,fac:FAC},quick:['year','q'],d
 var SP_TYPES=['Office','Laboratory','Storage','Classroom','Meeting room','Common area'];
 var SHARED_ORDER=ALLDEPTS.concat(['Shared']);
 function ageBucket(y){var a=D.AY-y;return a<=2?'0–2 years':a<=5?'3–5 years':'6+ years';}
-SEC.space={key:'space',filters:{},sources:{rooms:D.SPACE},quick:['type','staff'],dims:{
+SEC.space={key:'space',filters:{},sources:{rooms:D.SPACE},quick:['type','staff'],selects:[{k:'dept',opts:function(){return ALLDEPTS;}}],dims:{
   block:{label:'Block',get:function(r){return r.block;},order:['Block A','Block B','Block C','Block D']},
   type:{label:'Space type',get:function(r){return r.type;},order:SP_TYPES,colors:{Office:1,Laboratory:5,Storage:2,Classroom:4,'Meeting room':7,'Common area':8}},
   dept:{label:'Department / unit',get:function(r){return r.dept;},order:SHARED_ORDER},
-  staff:{label:'Staff category',get:function(r){return r.staff;},order:['Academic','Administrative','Admin-Academic','Shared'],colors:{Academic:1,Administrative:2,'Admin-Academic':4,Shared:8}}
+  staff:{label:'Staff category',get:function(r){return r.staff;},order:['Academic','Administrative','Admin-Academic','Shared'],colors:{Academic:1,Administrative:2,'Admin-Academic':4,Shared:8}},
+  occupancy:{label:'Office occupancy',get:function(r){return r.occupancy;},order:['Single','Shared','Vacant','n/a'],colors:{Single:1,Shared:2,Vacant:8,'n/a':8}}
 }};
-SEC.it={key:'it',filters:{},sources:{assets:D.IT},quick:['age'],dims:{
+SEC.it={key:'it',filters:{},sources:{assets:D.IT},quick:['age'],selects:[{k:'dept',opts:function(){return ALLDEPTS;}}],dims:{
   type:{label:'Equipment type',get:function(r){return r.type;},order:D.IT_TYPES},
   dept:{label:'Department / unit',get:function(r){return r.dept;},order:SHARED_ORDER},
   block:{label:'Block',get:function(r){return r.block;},order:['Block A','Block B','Block C','Block D']},
@@ -722,7 +781,7 @@ function buildChart(sec,c,data,st,canvas){
       else if(c.multicolor)bg=labels.map(function(l,i){return fade(colorFor(dim,l,i,t),fd(l));});
       else bg=labels.map(function(l){return fade(t.c[0],fd(l));});
       var base={label:s.name,data:vals,counts:s.data,suffix:s.suffix||''};
-      if(line){var col=s.color?cv(t,s.color):(sdim?colorFor(sdim,s.name,si,t):t.c[si%8]);return Object.assign(base,{borderColor:col,backgroundColor:col,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2.5});}
+      if(line){var col=s.color?cv(t,s.color):(sdim?colorFor(sdim,s.name,si,t):t.c[si%t.c.length]);return Object.assign(base,{borderColor:col,backgroundColor:col,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2.5});}
       return Object.assign(base,{backgroundColor:bg,borderRadius:stacked?2:4,borderSkipped:false,maxBarThickness:36});
     });
     var maxVal=Math.max.apply(null,[0].concat(datasets.map(function(d){return Math.max.apply(null,d.data.length?d.data:[0]);})));
@@ -817,7 +876,7 @@ function dataTable(cfg){
         st.sort=(st.sort&&st.sort.key===c.key)?{key:c.key,dir:st.sort.dir==='asc'?'desc':'asc'}:{key:c.key,dir:c.num?'desc':'asc'};draw();}},c.label+arrow);})));
     var tb=h('tbody',null,rows.slice(st.page*ps,st.page*ps+ps).map(function(r){
       return h('tr',{class:cfg.onRow?'click':'',onclick:cfg.onRow?function(){cfg.onRow(r);}:null},
-        cfg.cols.map(function(c){return h('td',{class:c.num?'num':''},c.fmt?c.fmt(r[c.key],r):r[c.key]);}));}));
+        cfg.cols.map(function(c){return h('td',{class:c.num?'num':'',style:c.wrap?'white-space:normal;min-width:340px':null},c.fmt?c.fmt(r[c.key],r):r[c.key]);}));}));
     body.innerHTML='';
     body.append(h('div',{class:'tblwrap',style:'max-height:none'},h('table',{class:'tbl'},thead,tb)));
     body.append(h('div',{class:'pager'},h('span',null,'Page '+(st.page+1)+' of '+pages),
@@ -1152,8 +1211,7 @@ CARDS.space=[
 CARDS.it=[
  {id:'it-type',sec:'it',src:'assets',cls:'w6',title:'Equipment by type',sub:'Number of devices by equipment type',dim:'type',kinds:['doughnut','hbar'],unit:'Devices',val:qtyVal,multicolor:true},
  {id:'it-year',sec:'it',src:'assets',cls:'w6',title:'Equipment by year of acquisition',sub:'Devices by the year they were acquired, split by type',dim:'year',stack:'type',kinds:['bar','line'],unit:'Devices',val:qtyVal,percentable:true},
- {id:'it-dept',sec:'it',src:'assets',cls:'w6',title:'Equipment by department',sub:'Devices in each department or unit, split by type',dim:'dept',stack:'type',kinds:['hbar'],unit:'Devices',val:qtyVal,percentable:true,hideZero:true},
- {id:'it-age',sec:'it',src:'assets',cls:'w6',title:'Equipment age by block',sub:'Age of the equipment in each building block. Devices older than 5 years are due for review.',dim:'block',stack:'age',kinds:['bar','hbar'],unit:'Devices',val:qtyVal,percentable:true}
+ {id:'it-dept',sec:'it',src:'assets',cls:'w12',title:'Equipment by department',sub:'Devices in each department or unit, split by type',dim:'dept',stack:'type',kinds:['hbar'],unit:'Devices',val:qtyVal,percentable:true,hideZero:true}
 ];
 CARDS.overview=[
  {id:'o-level',sec:'students',src:'students',cls:'w6',title:'Students by level',sub:'Split by status',dim:'level',stack:'status',kinds:['bar','doughnut'],unit:'Students',ignoreFilters:true,link:'students',linkLabel:'Students'},
@@ -1407,6 +1465,28 @@ function viewPubs(m){
   m.append(g);
 }
 
+function itModal(id){
+  var s=STAFF.filter(function(x){return x.id===id;})[0];
+  var stat=function(v,l){return h('div',{class:'stat'},h('b',null,v),h('span',null,l));};
+  var devs=s.devices.slice().sort(function(a,b){return a.year-b.year;});
+  var oldN=devs.filter(function(d){return D.AY-d.year>5;}).length;
+  openModal(h('div',null,h('h3',null,s.name),h('div',{class:'meta'},(s.rank||s.position)+', '+s.dept),
+    h('div',{class:'row'},stat(s.room+', '+s.block,'Office'),stat(devs.length,'Items assigned'),stat(oldN,'Older than 5 years')),
+    devs.length?h('div',{class:'tblwrap'},h('table',{class:'tbl'},h('thead',null,h('tr',null,['Asset tag','Type','Year acquired','Age, years','Status'].map(function(t,i){return h('th',{class:(i===2||i===3)?'num':''},t);}))),
+      h('tbody',null,devs.map(function(d){var age=D.AY-d.year;
+        return h('tr',null,h('td',null,d.tag),h('td',null,d.type),h('td',{class:'num'},d.year),h('td',{class:'num'},age),
+          h('td',null,h('span',{class:'tag '+(age>5?'bad':'good')},age>5?'Review':'OK')));})))):h('div',{class:'empty'},'No equipment is assigned to this employee.')));
+}
+function officeModal(id){
+  var s=STAFF.filter(function(x){return x.id===id;})[0];
+  var mates=STAFF.filter(function(x){return x.roomId===s.roomId&&x.id!==s.id;});
+  var stat=function(v,l){return h('div',{class:'stat'},h('b',null,v),h('span',null,l));};
+  openModal(h('div',null,h('h3',null,s.name),h('div',{class:'meta'},(s.rank||s.position)+', '+s.dept),
+    h('div',{class:'row'},stat(s.room,s.block+', floor '+s.floor),stat(s.officeType,'Office type'),stat(s.roomArea+' m²','Room area'),stat(s.occupants,'People in the room'),stat(s.perPerson+' m²','Area per person')),
+    mates.length?h('div',null,h('h4',{style:'margin:0 0 6px'},'Shares the office with'),
+      h('div',{class:'tblwrap'},h('table',{class:'tbl'},h('thead',null,h('tr',null,h('th',null,'Name'),h('th',null,'Position'),h('th',null,'Staff type'))),
+        h('tbody',null,mates.map(function(x){return h('tr',null,h('td',null,x.name),h('td',null,x.position),h('td',null,x.type));}))))):h('div',{class:'tip'},'Single office, no one else sits here.')));
+}
 function viewInfra(m){
   var st=ui('infra-tab',{tab:'space'});
   var sec=st.tab==='it'?SEC.it:SEC.space;
@@ -1415,8 +1495,64 @@ function viewInfra(m){
     [['space','Space allocation'],['it','IT infrastructure']].map(function(t){
       return h('button',{class:'chip',type:'button','aria-pressed':String(st.tab===t[0]),onclick:function(){st.tab=t[0];renderMain();}},t[1]);}))));
   m.append(filterBar(sec));
-  if(st.tab==='it'){m.append(kpiStrip(sec,itKpis(sec)));m.append(cardsGrid(sec,CARDS.it));}
-  else{m.append(kpiStrip(sec,spaceKpis(sec)));m.append(cardsGrid(sec,CARDS.space));}
+  if(st.tab==='it'){
+    m.append(kpiStrip(sec,itKpis(sec)));
+    var gi=cardsGrid(sec,CARDS.it);
+    var fl=sec.filters;
+    var on=function(k,v){return !fl[k]||!fl[k].size||fl[k].has(v);};
+    var devOk=function(d){return on('type',d.type)&&on('year',String(d.year))&&on('age',ageBucket(d.year))&&on('block',d.block);};
+    var anyDev=['type','year','age','block'].some(function(k){return fl[k]&&fl[k].size;});
+    var irows=STAFF.filter(function(s){return on('dept',s.dept)&&(!anyDev||s.devices.some(devOk));}).map(function(s){
+      var lap=s.devices.filter(function(d){return d.type==='Laptop';}),pc=s.devices.filter(function(d){return d.type==='Desktop computer';});
+      var txt=function(l){return l.length?l.map(function(d){return d.tag+' ('+d.year+')';}).join(', '):'—';};
+      var oldest=s.devices.length?Math.max.apply(null,s.devices.map(function(d){return D.AY-d.year;})):-1;
+      return{id:s.id,name:s.name,dept:s.dept,stype:s.type,position:s.position,room:s.room,
+        equipment:s.devices.length?D.IT_TYPES.filter(function(t){return s.devices.some(function(d){return d.type===t;});}).map(function(t){return t+': '+s.devices.filter(function(d){return d.type===t;}).map(function(d){return d.tag+' ('+d.year+')';}).join(', ');}).join('; '):'No equipment assigned',
+        location:s.room+', '+s.block,laptop:txt(lap),desktop:txt(pc),count:s.devices.length,oldest:oldest,
+        status:!s.devices.length?'No computer':(oldest>5?'Review':'OK')};});
+    var nOld=irows.filter(function(r){return r.status==='Review';}).length,nNone=irows.filter(function(r){return r.status==='No computer';}).length;
+    var nDev=irows.reduce(function(a,r){return a+r.count;},0);
+    var isum=kpiStrip(null,[kpi('Employees',fmt(irows.length),'In the current selection'),kpi('Computers assigned',fmt(nDev),'Laptops and desktops'),
+      kpi('Device older than 5 years',fmt(nOld),'Employees to review',{tone:nOld?'warn':'ok'}),kpi('No assigned computer',fmt(nNone),'Without a laptop or desktop')]);
+    var emp=ui('it-emp',{f:''});
+    var cnt=function(s,t){return s.devices.filter(function(d){return d.type===t;}).length;};
+    var yr=function(s,t){var l=s.devices.filter(function(d){return d.type===t;});return l.length?l[0].year:0;};
+    var allP=STAFF.filter(function(s){return on('dept',s.dept)&&(!anyDev||s.devices.some(devOk));});
+    var mrows=allP.map(function(s){
+      var comps=s.devices.filter(function(d){return d.type==='Laptop'||d.type==='Desktop computer';});
+      var oldest=comps.length?Math.max.apply(null,comps.map(function(d){return D.AY-d.year;})):-1;
+      return{id:s.id,name:s.name,position:s.position,location:s.room+', '+s.block,laptop:cnt(s,'Laptop'),desktop:cnt(s,'Desktop computer'),
+        monitors:cnt(s,'Monitor'),dock:cnt(s,'Docking station'),phone:cnt(s,'Phone & headset'),tablet:cnt(s,'Tablet'),total:s.devices.length,oldest:oldest,
+        status:!(cnt(s,'Laptop')+cnt(s,'Desktop computer'))?'No computer':(oldest>5?'Review':'OK')};});
+    var nAll=mrows.length,nLap=mrows.filter(function(r){return r.laptop>0;}).length,nComp=mrows.filter(function(r){return r.status!=='No computer';}).length;
+    var nOld2=mrows.filter(function(r){return r.oldest>5;}).length,nNone2=nAll-nComp;
+    var msum=kpiStrip(null,[kpi('Employees',fmt(nAll),'In the current selection'),kpi('Have a laptop',pct(nLap,nAll,0),fmt(nLap)+' employees'),
+      kpi('Have a computer',pct(nComp,nAll,0),'Laptop or desktop'),kpi('Computer older than 5 years',fmt(nOld2),pct(nOld2,nAll,0)+' of employees',{tone:nOld2?'warn':'ok'}),
+      kpi('No computer',fmt(nNone2),'Without a laptop or desktop',{tone:nNone2?'warn':'ok'})]);
+    var chips=h('div',{class:'filters'},h('div',{class:'fgroup',role:'group','aria-label':'Attention filters'},h('span',null,'Show'),
+      [['','All employees ('+nAll+')'],['old','Computer older than 5 years ('+nOld2+')'],['nolaptop','No laptop ('+(nAll-nLap)+')'],['nocomp','No computer ('+nNone2+')']].map(function(c){
+        return h('button',{class:'chip',type:'button','aria-pressed':String(emp.f===c[0]),onclick:function(){emp.f=c[0];renderMain();}},c[1]);})));
+    var shown=mrows.filter(function(r){return emp.f==='old'?r.oldest>5:emp.f==='nolaptop'?r.laptop===0:emp.f==='nocomp'?r.status==='No computer':true;});
+    var yearFmt=function(v){return v?h('span',{class:'tag '+(D.AY-v>5?'bad':'good')},v):'—';};
+    var countFmt=function(v){return v||'—';};
+    gi.append(tableCard('IT equipment by employee','Equipment coverage for each employee: how many laptops, desktops, monitors, docking stations, phones and tablets are registered. Use the buttons to find people who need attention, search by name or pick a department above. Click a row for the full list with asset tags and years.',h('div',null,msum,chips,dataTable({id:'dt-itemp',pageSize:15,placeholder:'Search employee or position…',sort:{key:'name',dir:'asc'},rows:shown,onRow:function(r){itModal(r.id);},
+      cols:[{key:'name',label:'Employee'},{key:'position',label:'Position'},{key:'location',label:'Location'},
+        {key:'laptop',label:'Laptop',num:true,fmt:countFmt},{key:'desktop',label:'Desktop',num:true,fmt:countFmt},
+        {key:'monitors',label:'Monitors',num:true,fmt:countFmt},{key:'dock',label:'Dock',num:true,fmt:countFmt},{key:'phone',label:'Phone',num:true,fmt:countFmt},{key:'tablet',label:'Tablet',num:true,fmt:countFmt},
+        {key:'total',label:'Items',num:true}]}))));
+    m.append(gi);
+  }
+  else{
+    m.append(kpiStrip(sec,spaceKpis(sec)));
+    var gs=cardsGrid(sec,CARDS.space);
+    var fd=sec.filters.dept,fs=sec.filters.staff,fo=sec.filters.occupancy;
+    var erows=STAFF.filter(function(s){return (!fd||!fd.size||fd.has(s.dept))&&(!fs||!fs.size||fs.has(s.type))&&(!fo||!fo.size||fo.has(s.officeType));}).map(function(s){
+      return{id:s.id,name:s.name,dept:s.dept,type:s.type,position:s.position,block:s.block,room:s.room,floor:s.floor,office:s.officeType,occupants:s.occupants,area:s.roomArea,per:s.perPerson};});
+    gs.append(tableCard('Office allocation by employee','Where each employee sits, whether the office is single or shared, and the space per person. Search by name or pick a department above. Click a row for details.',dataTable({id:'dt-office',pageSize:15,placeholder:'Search employee, department or room…',sort:{key:'name',dir:'asc'},rows:erows,onRow:function(r){officeModal(r.id);},
+      cols:[{key:'name',label:'Employee'},{key:'dept',label:'Department / unit'},{key:'type',label:'Staff type'},{key:'position',label:'Position / rank'},{key:'block',label:'Block'},{key:'room',label:'Room'},
+        {key:'office',label:'Office',fmt:function(v){return h('span',{class:'tag '+(v==='Single'?'good':'mid')},v);}},{key:'occupants',label:'People in room',num:true},{key:'area',label:'Room area, m²',num:true},{key:'per',label:'m² per person',num:true}]})));
+    m.append(gs);
+  }
 }
 
 /* ---------- shell ---------- */
